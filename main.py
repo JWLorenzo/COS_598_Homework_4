@@ -11,6 +11,7 @@ import vec2
 import unit
 import command
 
+
 # ###################################################################
 # DISPLAY
 # The display part of the engine. Unless you want to mess with
@@ -82,8 +83,6 @@ class Display:
                     u.pos.x*self.map_cell_size+4,
                     u.pos.y*self.map_cell_size+4,
                     fcolor)
-            
-            
 
 
 def init_display(sw, sh):
@@ -91,9 +90,10 @@ def init_display(sw, sh):
     screen = pygame.display.set_mode((sw, sh))
     clock = pygame.time.Clock()
     display = Display(screen, clock)
-    display.font = pygame.freetype.Font('JuliaMono-Bold.ttf', 18)
+    display.font = pygame.freetype.Font("JuliaMono-Bold.ttf", 18)
     pygame.key.set_repeat(200, 100)
     return display
+
 
 # ###############################################################
 # GAME GENERATION FUCNTIONS
@@ -109,49 +109,50 @@ def gen_game_map(width, height):
 def gen_factions(gmap):
 
     factions = {}
-    factions['Red'] = faction.Faction(
-        'Red', params.STARTING_FACTION_MONEY,
-        ai.AI(), 'red')
-    factions['Blue'] = faction.Faction(
-        'Blue', params.STARTING_FACTION_MONEY,
-        ai.AI(), 'blue')
+    factions["Red"] = faction.Faction(
+        "Red", params.STARTING_FACTION_MONEY, ai.AI(), "red"
+    )
+    factions["Blue"] = faction.Faction(
+        "Blue", params.STARTING_FACTION_MONEY, ai.AI(), "blue"
+    )
 
     return factions
+
 
 def gen_cities(gmap, faction_ids):
     city_positions = []
     cities = []
     faction_id_index = 0
-    
-    for i in range(params.CITIES_PER_FACTION*len(faction_ids)):
+
+    for i in range(params.CITIES_PER_FACTION * len(faction_ids)):
 
         # A new red city
         new_city_pos = None
         while True:
             new_city_pos = vec2.Vec2(
-                random.randrange(gmap.width),
-                random.randrange(gmap.height))
+                random.randrange(gmap.width), random.randrange(gmap.height)
+            )
             if new_city_pos not in city_positions:
                 city_positions.append(new_city_pos)
                 break
 
         fid = faction_ids[faction_id_index]
-        faction_id_index = (faction_id_index+1)%len(faction_ids)
-            
-        c = city.City(
-            params.get_random_city_ID(),
-            new_city_pos,
-            fid, params.CITY_INCOME)
+        faction_id_index = (faction_id_index + 1) % len(faction_ids)
 
+        c = city.City(
+            params.get_random_city_ID(), new_city_pos, fid, params.CITY_INCOME
+        )
 
         cities.append(c)
-        
+
     return cities
+
 
 # ###########################################################
 # GAME ENGINE CODE
 # See specific function comments below
 # ##########################################################
+
 
 # FactionPreTurn:
 # You don't need to edit this unless you make city resources
@@ -164,13 +165,13 @@ def FactionPreTurn(cities, faction):
 
     # #####################################################
     # FACTION DATA
-    
+
     # Award income
     for c in cities:
         if c.faction_id == faction.ID:
             income = c.generate_income()
             faction.money += income
-    
+
     # #####################################################
     # CITY DATA
     for c in cities:
@@ -178,7 +179,8 @@ def FactionPreTurn(cities, faction):
             faction_cities.append(c)
 
     return faction_cities
-    
+
+
 # Turn:
 # The actual turn taking function. Calls each faction's ai
 # Gathers all the commands in a giant list and returns it.
@@ -192,6 +194,7 @@ def Turn(factions, gmap, cities_by_faction, units_by_faction):
         commands += cmds
 
     return commands
+
 
 # RunAllCommands:
 # Executes all commands from the current turn.
@@ -208,15 +211,16 @@ def RunAllCommands(commands, factions, unit_dict, cities, gmap):
         else:
             print(f"Bad command type: {type(cmd)}")
 
+
 # RunMoveCommand:
 # The function that handles MoveUnitCommands.
 def RunMoveCommand(cmd, factions, unit_dict, cities, gmap, move_list):
 
-    if cmd.unit_id in move_list:
+    if (cmd.unit_id, cmd.faction_id) in move_list:
         return
     else:
-        move_list.append(cmd.unit_id)
-    
+        move_list.append((cmd.unit_id, cmd.faction_id))
+
     # Find the unit
     ulist = unit_dict.by_faction[cmd.faction_id]
     theunit = None
@@ -236,9 +240,9 @@ def RunMoveCommand(cmd, factions, unit_dict, cities, gmap, move_list):
     except KeyError:
         print(f"{cmd.direction} is not a valid direction")
         return
-    
+
     new_pos = theunit.pos + delta
-    
+
     # Modulo the new pos to the map size
     new_pos.mod(gmap.width, gmap.height)
 
@@ -255,7 +259,9 @@ def RunMoveCommand(cmd, factions, unit_dict, cities, gmap, move_list):
 
         # Is the other unit an enemy?
         if other_unit.faction_id != theunit.faction_id:
-            space_now_free = RunCombat(theunit, other_unit, cmd, factions, unit_dict, cities, gmap)
+            space_now_free = RunCombat(
+                theunit, other_unit, cmd, factions, unit_dict, cities, gmap
+            )
             # Perhaps combat freed the space.
             # if so, move.
             if space_now_free:
@@ -263,13 +269,14 @@ def RunMoveCommand(cmd, factions, unit_dict, cities, gmap, move_list):
                 theunit.pos = new_pos
                 unit_dict.move_unit(u, old_pos, new_pos)
                 move_successful = True
-        
+
     # Check if the move conquerored a city
     if move_successful:
         for c in cities:
             if new_pos == c.pos:
                 c.faction_id = u.faction_id
                 break
+
 
 # RunBuildCommand:
 # Executes the BuildUnitCommand.
@@ -291,14 +298,18 @@ def RunBuildCommand(cmd, factions, unit_dict, cities, gmap):
                 if unit_dict.is_pos_free(c.pos):
 
                     uid = f.get_next_unit_id()
-                    new_unit = unit.Unit(uid, cmd.utype,
-                                         f.ID,
-                                         copy.copy(c.pos),
-                                         unit.UNIT_HEALTH[cmd.utype],
-                                         0)
+                    new_unit = unit.Unit(
+                        uid,
+                        cmd.utype,
+                        f.ID,
+                        copy.copy(c.pos),
+                        unit.UNIT_HEALTH[cmd.utype],
+                        0,
+                    )
                     unit_dict.add_unit(new_unit)
 
                     f.money -= cost
+
 
 # RunCombat:
 # Called by the MoveUnitCommand if a unit tries to move into a cell
@@ -335,16 +346,17 @@ def RunCombat(attacker, defender, cmd, factions, unit_dict, cities, gmap):
     # the cell.
     can_move = False
     if defender.health <= 0:
-        #print(f"   {defender.faction_id} died")
+        # print(f"   {defender.faction_id} died")
         unit_dict.remove_unit(defender)
         can_move = True
     if attacker.health <= 0:
-        #print(f"   {attacker.faction_id} died")
+        # print(f"   {attacker.faction_id} died")
         unit_dict.remove_unit(attacker)
         can_move = False
 
     return can_move
-            
+
+
 # ###########################################################
 # THE UNIT DICTIONARY
 # Modify at your own risk. Probably no need.
@@ -355,21 +367,27 @@ class UnitDict:
         self.by_faction = {}
         for fid in faction_ids:
             self.by_faction[fid] = []
+
     def add_unit_by_pos(self, u, pos):
         if pos not in self.by_pos:
             self.by_pos[pos] = u
+
     def remove_unit_by_pos(self, u, pos):
         if u == self.by_pos[pos]:
             del self.by_pos[pos]
+
     def move_unit(self, u, old_pos, new_pos):
         self.remove_unit_by_pos(u, old_pos)
         self.add_unit_by_pos(u, new_pos)
+
     def add_unit(self, u):
         self.by_faction[u.faction_id].append(u)
         self.add_unit_by_pos(u, u.pos)
+
     def remove_unit(self, u):
         self.by_faction[u.faction_id].remove(u)
         self.remove_unit_by_pos(u, u.pos)
+
     def is_pos_free(self, pos):
         return pos not in self.by_pos
 
@@ -380,8 +398,8 @@ def CheckForGameOver(cities):
         if c.faction_id not in faction_ids_with_cities:
             faction_ids_with_cities.append(c.faction_id)
     return len(faction_ids_with_cities) == 1, faction_ids_with_cities[0]
-        
-    
+
+
 # ###########################################################3
 # GAME LOOP
 # Where the magic happens.
@@ -389,8 +407,9 @@ def CheckForGameOver(cities):
 # for different reasons.
 # ###########################################################
 
+
 def GameLoop(display):
-    
+
     winw, winh = pygame.display.get_window_size()
 
     # Width and Height (in cells) of the game map. If you want
@@ -399,7 +418,7 @@ def GameLoop(display):
     # - The window size below in main().
     # - The map_cell_size given in the Display class above.
     gmap = gen_game_map(40, 30)
-    
+
     factions = gen_factions(gmap)
     cities = gen_cities(gmap, list(factions.keys()))
     unit_dict = UnitDict(list(factions.keys()))
@@ -428,7 +447,6 @@ def GameLoop(display):
                     if speed < 4096:
                         speed = speed * 2
 
-
         display.screen.fill("white")
 
         if ticks >= speed:
@@ -438,9 +456,7 @@ def GameLoop(display):
                 faction_cities = FactionPreTurn(cities, f)
                 cities_by_faction[fid] = faction_cities
 
-            commands = Turn(factions, gmap,
-                            cities_by_faction,
-                            unit_dict.by_faction)
+            commands = Turn(factions, gmap, cities_by_faction, unit_dict.by_faction)
             RunAllCommands(commands, factions, unit_dict, cities, gmap)
             turn += 1
 
@@ -448,7 +464,6 @@ def GameLoop(display):
             if game_over[0]:
                 print(f"Winning faction: {game_over[1]}")
                 display.run = False
-            
 
         display.draw_map(gmap)
         display.draw_cities(cities, factions)
@@ -457,18 +472,20 @@ def GameLoop(display):
         # ###########################################3
         # RIGHT_SIDE UI
         display.draw_text(f"TURN {turn}", 805, 5, "black")
-        display.draw_text(f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}",
-                          805, 25, "black")
+        display.draw_text(f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}", 805, 25, "black")
         y = 45
         for fid, f in factions.items():
             num_cities = 0
             for c in cities:
                 if c.faction_id == fid:
                     num_cities += 1
-            display.draw_text(f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
-                              805, y, "black")
+            display.draw_text(
+                f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
+                805,
+                y,
+                "black",
+            )
             y += 20
-
 
         pygame.display.flip()
 
