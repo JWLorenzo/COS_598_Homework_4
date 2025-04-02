@@ -10,6 +10,8 @@ import city
 import vec2
 import unit
 import command
+import os
+import cell_terrain
 
 
 # ###################################################################
@@ -26,6 +28,7 @@ class Display:
         self.delta = 0
         self.font = None
         self.map_cell_size = 20
+        self.scaling_factor = 1
 
     # fmt: off
     def draw_gobj(self, gobj):
@@ -39,6 +42,11 @@ class Display:
         surface, rect = self.font.render(msg, color)
         self.screen.blit(surface, (x, y))
 
+    def draw_text_centered(self, msg, x, y, color):
+        surface, rect = self.font.render(msg, color)
+        rect.center = (int(x), int(y))
+        self.screen.blit(surface, rect)
+
     def draw_line(self, p1, p2, color, width=1):
         pygame.draw.line(
             self.screen,
@@ -47,17 +55,33 @@ class Display:
             p2,
             width)
 
-    def draw_map(self, gmap):
+
+
+    def draw_map(self, gmap,background):
+        terrain_images = {}
+
+        for terrain in cell_terrain.Terrain.__members__.keys():
+            image = pygame.image.load(os.path.join(os.getcwd(),"Tile_Images",terrain.lower()+".png"))
+            image = pygame.transform.scale(image,(self.map_cell_size,self.map_cell_size))
+            terrain_images[terrain] = image
+
         for v, c in gmap.cells.items():
-            pygame.draw.rect(
-                self.screen,
-                c.get_color(),
-                pygame.rect.Rect(
-                    v.x*self.map_cell_size,
-                    v.y*self.map_cell_size,
-                    self.map_cell_size,
-                    self.map_cell_size),
-                width=0)
+            print(c.terrain)
+            # pygame.draw.rect(
+            #     self.screen,
+            #     c.get_color(),
+            #     pygame.rect.Rect(
+            #         v.x*self.map_cell_size,
+            #         v.y*self.map_cell_size,
+            #         self.map_cell_size,
+            #         self.map_cell_size),
+            #     width=0)
+            rect = terrain_images[c.terrain.name].get_rect()
+            rect = rect.move(v.x*self.map_cell_size,v.y*self.map_cell_size)
+            background.blit(terrain_images[c.terrain.name],rect)
+
+
+    
 
     def draw_cities(self, cities, factions):
         for c in cities:
@@ -78,19 +102,32 @@ class Display:
         for fid, ulist in unit_dict.by_faction.items():
             fcolor = factions[fid].color
             for u in ulist:
-                self.draw_text(
-                    u.utype,
-                    u.pos.x*self.map_cell_size+4,
-                    u.pos.y*self.map_cell_size+4,
-                    fcolor)
+                print(u.utype)
+                metrics = self.font.get_metrics(u.utype)
+                print(metrics[0])
+
+                min_x , max_x , min_y, max_y= metrics[0][0:4]
+                width = (max_x - min_x)//2
+                height = (max_y - min_y)//2
+                offset_x = width
+                offset_y = height
+                cell_center_x = u.pos.x*self.map_cell_size + self.map_cell_size//2
+                cell_center_y = u.pos.y*self.map_cell_size + self.map_cell_size//2
+                end_x = cell_center_x - offset_x
+                end_y = cell_center_y - offset_y
+                self.draw_text(u.utype, end_x, end_y, fcolor)
 
 
-def init_display(sw, sh):
+def init_display():
     pygame.init()
-    screen = pygame.display.set_mode((sw, sh))
+    info = pygame.display.Info()
+    screen = pygame.display.set_mode((info.current_w, info.current_h))
     clock = pygame.time.Clock()
     display = Display(screen, clock)
-    display.font = pygame.freetype.Font("JuliaMono-Bold.ttf", 18)
+    ScaleUI(display, 40, 30, 20)
+    display.font = pygame.freetype.Font(
+        "JuliaMono-Bold.ttf", 18 * display.scaling_factor
+    )
     pygame.key.set_repeat(200, 100)
     return display
 
@@ -400,6 +437,15 @@ def CheckForGameOver(cities):
     return len(faction_ids_with_cities) == 1, faction_ids_with_cities[0]
 
 
+def ScaleUI(display, map_width, map_height, base_cell_size):
+    window_width, window_height = pygame.display.get_window_size()
+    display.scaling_factor = min(
+        window_width / (map_width * base_cell_size),
+        window_height / (map_height * base_cell_size),
+    )
+    display.map_cell_size = int(base_cell_size * display.scaling_factor)
+
+
 # ###########################################################3
 # GAME LOOP
 # Where the magic happens.
@@ -418,6 +464,9 @@ def GameLoop(display):
     # - The window size below in main().
     # - The map_cell_size given in the Display class above.
     gmap = gen_game_map(40, 30)
+    background = pygame.Surface((winw, winh))
+    background.fill("white")
+    display.draw_map(gmap, background)
 
     factions = gen_factions(gmap)
     cities = gen_cities(gmap, list(factions.keys()))
@@ -465,14 +514,25 @@ def GameLoop(display):
                 print(f"Winning faction: {game_over[1]}")
                 display.run = False
 
-        display.draw_map(gmap)
+        # display.draw_map(gmap)
+        display.screen.blit(background, (0, 0))
         display.draw_cities(cities, factions)
         display.draw_units(unit_dict, factions)
 
         # ###########################################3
         # RIGHT_SIDE UI
-        display.draw_text(f"TURN {turn}", 805, 5, "black")
-        display.draw_text(f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}", 805, 25, "black")
+        display.draw_text(
+            f"TURN {turn}",
+            805 * display.scaling_factor,
+            5 * display.scaling_factor,
+            "black",
+        )
+        display.draw_text(
+            f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}",
+            805 * display.scaling_factor,
+            25 * display.scaling_factor,
+            "black",
+        )
         y = 45
         for fid, f in factions.items():
             num_cities = 0
@@ -481,8 +541,8 @@ def GameLoop(display):
                     num_cities += 1
             display.draw_text(
                 f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
-                805,
-                y,
+                805 * display.scaling_factor,
+                y * display.scaling_factor,
                 "black",
             )
             y += 20
@@ -492,7 +552,7 @@ def GameLoop(display):
 
 def main():
     random.seed(None)
-    display = init_display(1000, 600)
+    display = init_display()
     GameLoop(display)
 
 
