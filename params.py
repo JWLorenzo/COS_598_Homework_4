@@ -15,12 +15,8 @@ import random
 # to add them below and call them in game_map.py.
 CELL_TERRAIN_PROBABILITY = {
     cell_terrain.Terrain.Forest: 1,
-    cell_terrain.Terrain.Hill: 4,
-    cell_terrain.Terrain.Mountain: 0.5,
-    cell_terrain.Terrain.Field: 3,
-    cell_terrain.Terrain.Desert: 0.5,
-    cell_terrain.Terrain.Pasture: 0.5,
-}
+    cell_terrain.Terrain.Open: 4
+    }
 
 TERRAINS = list(CELL_TERRAIN_PROBABILITY.keys())
 PROBS = list(CELL_TERRAIN_PROBABILITY.values())
@@ -28,17 +24,15 @@ TOTAL = sum(PROBS)
 
 running_sum = 0
 for i, p in enumerate(PROBS):
-    PROBS[i] = (p + running_sum) / TOTAL
+    PROBS[i] = (p+running_sum)/TOTAL
     running_sum += p
-
-
+    
 def get_random_terrain(roll):
     for i, p in enumerate(PROBS):
         if roll <= p:
             return TERRAINS[i]
-    # print(roll)
-
-
+    #print(roll)
+    
 # ##########################################################33
 # FACTION STUFF
 #
@@ -56,11 +50,10 @@ STARTING_FACTION_MONEY = 1000
 # in the game, but if you want them to, they are there
 # and already being loaded into the cities on instantiation.
 CITY_IDS = []
-with open("city_names") as f:
+with open('city_names') as f:
     for line in f:
         line = line.strip()
         CITY_IDS.append(line)
-
 
 def get_random_city_ID():
     return random.choice(CITY_IDS)

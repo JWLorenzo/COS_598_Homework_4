@@ -6,11 +6,6 @@
 
 import enum
 
-
 class Terrain(enum.Enum):
+    Open = 0
     Forest = 1
-    Desert = 2
-    Mountain = 3
-    Field = 4
-    Hill = 5
-    Pasture = 6
