@@ -5,6 +5,7 @@
 
 import math
 
+
 class Vec2:
     def __init__(self, x, y):
         self.x = x
@@ -24,12 +25,10 @@ class Vec2:
 
     def __add__(self, o):
         return Vec2(self.x + o.x, self.y + o.y)
-    
+
     # Straight-line distance
     def distance_line(self, o):
-        return math.sqrt(
-            (o.x - self.x)**2 +
-            (o.y - self.y)**2)
+        return math.sqrt((o.x - self.x) ** 2 + (o.y - self.y) ** 2)
 
     # Manhattan distance
     def distance_man(self, o):
@@ -40,10 +39,4 @@ class Vec2:
         self.y = (self.y + maxY) % maxY
 
 
-
-MOVES = {
-    'N': Vec2(0,-1),
-    'E': Vec2(1,0),
-    'S': Vec2(0,1),
-    'W': Vec2(-1,0)
-    }
+MOVES = {"N": Vec2(0, -1), "E": Vec2(2, 0), "S": Vec2(0, 1), "W": Vec2(-2, 0)}
