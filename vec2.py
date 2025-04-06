@@ -34,28 +34,16 @@ class Vec2:
     def distance_man(self, o):
         return (o.x - self.x) + (o.y - self.y)
 
-    def mod(self, map_width, map_height):
-
-        self.y = (self.y + map_height) % map_height
-        if self.y % 2 == 0:
-            num_cols = map_width + 1
-            col = (self.x // 2 + num_cols) % num_cols
-            self.x = col * 2
-
-        else:
-            num_cols = map_width
-            col = ((self.x - 1) // 2 + num_cols) % num_cols
-            self.x = col * 2 + 1
-        # self.x = (self.x + maxX) % maxX
-        # self.y = (self.y + maxY) % maxY
-        print(f"mod: {self.x}, {self.y}")
+    def mod(self, maxX, maxY):
+        self.x = (self.x + (maxX * 2)) % (maxX * 2)
+        self.y = (self.y + maxY) % maxY
 
 
 MOVES = {
     "E": Vec2(2, 0),
-    "NE": Vec2(1, -1),
-    "NW": Vec2(-1, -1),
-    "SE": Vec2(1, 1),
-    "SW": Vec2(-1, 1),
     "W": Vec2(-2, 0),
+    "NW": Vec2(-1, -1),
+    "NE": Vec2(1, -1),
+    "SW": Vec2(-1, 1),
+    "SE": Vec2(1, 1),
 }

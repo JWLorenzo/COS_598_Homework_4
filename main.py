@@ -10,12 +10,13 @@ import city
 import vec2
 import unit
 import command
-import os
 import cell_terrain
-import time
+import os
 
-GRID_WIDTH = 40
-GRID_HEIGHT = 45
+MAP_WIDTH = 30
+MAP_HEIGHT = 20
+CELL_SIZE = 50
+DISPLAY_COORD = 1
 
 
 # ###################################################################
@@ -31,8 +32,8 @@ class Display:
         self.run = True
         self.delta = 0
         self.font = None
-        self.map_cell_size = 30
-        self.scaling_factor = 1
+        self.map_cell_size = CELL_SIZE
+        self.scaling_factor = 1.0
 
     # fmt: off
     def draw_gobj(self, gobj):
@@ -46,11 +47,6 @@ class Display:
         surface, rect = self.font.render(msg, color)
         self.screen.blit(surface, (x, y))
 
-    def draw_text_centered(self, msg, x, y, color):
-        surface, rect = self.font.render(msg, color)
-        rect.center = (int(x), int(y))
-        self.screen.blit(surface, rect)
-
     def draw_line(self, p1, p2, color, width=1):
         pygame.draw.line(
             self.screen,
@@ -58,8 +54,6 @@ class Display:
             p1,
             p2,
             width)
-
-
 
     def draw_map(self, gmap,background):
         terrain_images = {}
@@ -69,7 +63,6 @@ class Display:
             terrain_images[terrain] = image
 
         for v, c in gmap.cells.items():
-            # print(c.terrain)
             # pygame.draw.rect(
             #     self.screen,
             #     c.get_color(),
@@ -79,72 +72,43 @@ class Display:
             #         self.map_cell_size,
             #         self.map_cell_size),
             #     width=0)
-            print(f"vx: {v.x} vy: {v.y}")
-            # if v.y % 2 == 1:
-            #     print("odd")
-            #     rect = terrain_images[c.terrain.name].get_rect()
-            #     rect = rect.move(v.x*self.map_cell_size+self.map_cell_size*.5,v.y*self.map_cell_size*.75)
-            #     background.blit(terrain_images[c.terrain.name],rect)
-            # else:
-            #     print("even")
-            #     rect = terrain_images[c.terrain.name].get_rect()
-            #     rect = rect.move(v.x*self.map_cell_size,v.y*self.map_cell_size*.75)
-            #     background.blit(terrain_images[c.terrain.name],rect)
             rect = terrain_images[c.terrain.name].get_rect()
-            rect = rect.move(v.x*self.map_cell_size*.5,v.y*self.map_cell_size*.75)
+            rect = rect.move(v.x * self.map_cell_size*.5,v.y*self.map_cell_size*.75)
             background.blit(terrain_images[c.terrain.name],rect )
 
     def draw_cities(self, cities, factions):
         for c in cities:
             f = factions[c.faction_id]
-            # print(f"c.pos.x: {c.pos.x} c.pos.y: {c.pos.y}"),
-            if c.pos.y %2 ==1:
-                pos_x = c.pos.x*self.map_cell_size + self.map_cell_size*.5
-                pos_y = c.pos.y*self.map_cell_size*.75
-
-            else:
-                pos_x = c.pos.x*self.map_cell_size
-                pos_y = c.pos.y*self.map_cell_size*.75
-                        
             pygame.draw.rect(
                 self.screen,
                 f.color,
-
                 pygame.rect.Rect(
-                    pos_x,
-                    pos_y,
+                    c.pos.x*self.map_cell_size*.5,
+                    c.pos.y*self.map_cell_size*.75,
                     self.map_cell_size,
                     self.map_cell_size
                 ),
                 width=2
             )
+            self.draw_text(
+                    f"({c.pos.x},{c.pos.y})",
+                    c.pos.x*self.map_cell_size*.5, 
+                    c.pos.y*self.map_cell_size*.75,
+                    "black")
+                # print(f"odd row ({c.pos.x},{c.pos.y})")
             
     def draw_units(self, unit_dict, factions):
         for fid, ulist in unit_dict.by_faction.items():
             fcolor = factions[fid].color
             for u in ulist:
-                # print(u.utype)
-                metrics = self.font.get_metrics(u.utype)
-                # print(metrics[0])
-
-                min_x , max_x , min_y, max_y= metrics[0][0:4]
-                width = (max_x - min_x)//2
-                height = (max_y - min_y)//2
-                offset_x = width
-                offset_y = height
-                end_x = u.pos.x*self.map_cell_size
-                end_y = u.pos.y*self.map_cell_size
-                end_x -= offset_x
-                end_y -= offset_y
-
-                if u.pos.y %2 == 1:
-                    end_y *=.75
-                    end_x += .5* self.map_cell_size 
-                else:
-                    end_y *=.75
-                
-
-                self.draw_text(u.utype, end_x, end_y, fcolor)
+                msg  = u.utype
+                if DISPLAY_COORD:
+                    msg = f"({u.pos.x},{u.pos.y}){u.utype}"
+                self.draw_text(
+                    msg,
+                    u.pos.x*self.map_cell_size*.5,
+                    u.pos.y*self.map_cell_size*.75,
+                    fcolor)
 
 
 def init_display():
@@ -153,8 +117,11 @@ def init_display():
     screen = pygame.display.set_mode((info.current_w, info.current_h))
     clock = pygame.time.Clock()
     display = Display(screen, clock)
-    ScaleUI(display, GRID_WIDTH, GRID_HEIGHT)
-    display.font = pygame.freetype.Font("JuliaMono-Bold.ttf", 18 * 2)
+    ScaleUI(display, MAP_WIDTH, MAP_HEIGHT)
+    display.map_cell_size = int(display.map_cell_size * display.scaling_factor)
+    display.font = pygame.freetype.Font(
+        "JuliaMono-Bold.ttf", 10 * display.scaling_factor
+    )
     pygame.key.set_repeat(200, 100)
     return display
 
@@ -193,22 +160,18 @@ def gen_cities(gmap, faction_ids):
         # A new red city
         new_city_pos = None
         while True:
-            # new_city_pos = vec2.Vec2(
-            #     random.randrange(gmap.width), random.randrange(gmap.height)
-            # )
+            new_city_y = random.randrange(gmap.height)
 
-            new_x = random.randrange(gmap.width)
-            if new_x % 2 == 1:
-                new_y = random.randrange(1, gmap.height, 2)
+            if new_city_y % 2 == 0:
+
+                new_city_x = random.randrange(0, gmap.width * 2 + 1, 2)
             else:
-                new_y = random.randrange(0, gmap.height, 2)
+                new_city_x = random.randrange(1, gmap.width * 2 + 1, 2)
 
-            new_city_pos = vec2.Vec2(new_x, new_y)
-
+            new_city_pos = vec2.Vec2(new_city_x, new_city_y)
             if new_city_pos not in city_positions:
                 city_positions.append(new_city_pos)
                 break
-
         fid = faction_ids[faction_id_index]
         faction_id_index = (faction_id_index + 1) % len(faction_ids)
 
@@ -443,27 +406,18 @@ class UnitDict:
 
     def add_unit_by_pos(self, u, pos):
         if pos not in self.by_pos:
-            if pos.x % 2 == pos.y % 2:
-                print("legit")
-                self.by_pos[pos] = u
-            else:
-                print("Pos:", pos)
-                raise Exception("Invalid position")
+            self.by_pos[pos] = u
 
     def remove_unit_by_pos(self, u, pos):
-        print(f"Removing {u.utype} from {pos}")
-        # print(self.by_pos)
         if u == self.by_pos[pos]:
             del self.by_pos[pos]
 
     def move_unit(self, u, old_pos, new_pos):
-        print(f"Moving {u.utype} from {old_pos} to {new_pos}")
         self.remove_unit_by_pos(u, old_pos)
         self.add_unit_by_pos(u, new_pos)
 
     def add_unit(self, u):
         self.by_faction[u.faction_id].append(u)
-
         self.add_unit_by_pos(u, u.pos)
 
     def remove_unit(self, u):
@@ -489,7 +443,7 @@ def ScaleUI(display, map_width, map_height):
         window_width / (map_width * display.map_cell_size),
         window_height / (map_height * display.map_cell_size),
     )
-    # display.map_cell_size = int(display.map_cell_size * display.scaling_factor)
+    print(f"Scaling factor: {display.scaling_factor}")
 
 
 # ###########################################################3
@@ -509,7 +463,7 @@ def GameLoop(display):
     # with two other things.
     # - The window size below in main().
     # - The map_cell_size given in the Display class above.
-    gmap = gen_game_map(GRID_WIDTH, GRID_HEIGHT)
+    gmap = gen_game_map(MAP_WIDTH, MAP_HEIGHT)
     background = pygame.Surface((winw, winh))
     background.fill("white")
     display.draw_map(gmap, background)
@@ -522,6 +476,7 @@ def GameLoop(display):
     speed = 1024
     ticks = 0
     turn = 1
+    pause = False
     while display.run:
         ticks += display.clock.tick(60)
 
@@ -541,60 +496,55 @@ def GameLoop(display):
                     # Increase if you want a slower game speed.
                     if speed < 4096:
                         speed = speed * 2
+                elif event.key == pygame.K_p:
+                    # Pause the game.
+                    pause = not pause
+                    speed = 0 if pause else 1024
 
         display.screen.fill("white")
+        if not pause:
+            if ticks >= speed:
+                ticks = 0
+                cities_by_faction = {}
+                for fid, f in factions.items():
+                    faction_cities = FactionPreTurn(cities, f)
+                    cities_by_faction[fid] = faction_cities
 
-        if ticks >= speed:
-            ticks = 0
-            cities_by_faction = {}
-            for fid, f in factions.items():
-                faction_cities = FactionPreTurn(cities, f)
-                cities_by_faction[fid] = faction_cities
+                commands = Turn(factions, gmap, cities_by_faction, unit_dict.by_faction)
+                RunAllCommands(commands, factions, unit_dict, cities, gmap)
+                turn += 1
 
-            commands = Turn(factions, gmap, cities_by_faction, unit_dict.by_faction)
-            RunAllCommands(commands, factions, unit_dict, cities, gmap)
-            turn += 1
+                game_over = CheckForGameOver(cities)
+                if game_over[0]:
+                    print(f"Winning faction: {game_over[1]}")
+                    display.run = False
 
-            game_over = CheckForGameOver(cities)
-            if game_over[0]:
-                print(f"Winning faction: {game_over[1]}")
-                display.run = False
+            # display.draw_map(gmap, background)
+            display.screen.blit(background, (0, 0))
+            display.draw_cities(cities, factions)
+            display.draw_units(unit_dict, factions)
 
-        # display.draw_map(gmap)
-        display.screen.blit(background, (0, 0))
-        display.draw_cities(cities, factions)
-        display.draw_units(unit_dict, factions)
-
-        # ###########################################3
-        # RIGHT_SIDE UI
-        TEXT_OFFSET_HORIZONTAL = 1.02
-        display.draw_text(
-            f"TURN {turn}",
-            display.map_cell_size * GRID_WIDTH * TEXT_OFFSET_HORIZONTAL,
-            0,
-            "black",
-        )
-        display.draw_text(
-            f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}",
-            display.map_cell_size * GRID_WIDTH * TEXT_OFFSET_HORIZONTAL,
-            display.map_cell_size,
-            "black",
-        )
-        y = 2
-        for fid, f in factions.items():
-            num_cities = 0
-            for c in cities:
-                if c.faction_id == fid:
-                    num_cities += 1
+            # ###########################################3
+            # RIGHT_SIDE UI
+            display.draw_text(f"TURN {turn}", 805, 5, "black")
             display.draw_text(
-                f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
-                display.map_cell_size * GRID_WIDTH * TEXT_OFFSET_HORIZONTAL,
-                y * display.map_cell_size,
-                "black",
+                f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}", 805, 25, "black"
             )
-            y += 1
+            y = 45
+            for fid, f in factions.items():
+                num_cities = 0
+                for c in cities:
+                    if c.faction_id == fid:
+                        num_cities += 1
+                display.draw_text(
+                    f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
+                    805,
+                    y,
+                    "black",
+                )
+                y += 20
 
-        pygame.display.flip()
+            pygame.display.flip()
 
 
 def main():
