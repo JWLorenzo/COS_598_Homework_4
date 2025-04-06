@@ -35,8 +35,15 @@ class Vec2:
         return (o.x - self.x) + (o.y - self.y)
 
     def mod(self, maxX, maxY):
-        self.x = (self.x + maxX) % maxX
+        self.x = (self.x + (maxX * 2)) % (maxX * 2)
         self.y = (self.y + maxY) % maxY
 
 
-MOVES = {"N": Vec2(0, -1), "E": Vec2(2, 0), "S": Vec2(0, 1), "W": Vec2(-2, 0)}
+MOVES = {
+    "E": Vec2(2, 0),
+    "W": Vec2(-2, 0),
+    "NW": Vec2(-1, -1),
+    "NE": Vec2(1, -1),
+    "SW": Vec2(-1, 1),
+    "SE": Vec2(1, 1),
+}
