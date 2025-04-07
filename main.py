@@ -123,6 +123,7 @@ class Display:
                         (c.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
                         "black")
     def draw_units(self, unit_dict, factions):
+        padding = 5
         for fid, ulist in unit_dict.by_faction.items():
             fcolor = factions[fid].color
             for u in ulist:
@@ -131,16 +132,12 @@ class Display:
                     msg = f"({u.pos.x},{u.pos.y}){u.utype}"
                 metrics = self.font.get_metrics(u.utype)[0]
                 print(metrics)
-                pygame.draw.rect(
-                self.screen,
-                "white",
-                pygame.rect.Rect(
-                    (u.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2),
-                    (u.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
-                    metrics[1]-metrics[0],
-                    metrics[3]-metrics[2],
-                )
-            )
+
+                rect_x =(u.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2)
+                rect_y =(u.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size)
+                rect_width = metrics[1]-metrics[0]
+                rect_height = metrics[3]-metrics[2]
+                draw_rectangle(self.screen,(rect_x,rect_y,rect_width,rect_height),"white",padding)
                 self.draw_text(
                     msg,
                     (u.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2),
@@ -148,18 +145,37 @@ class Display:
                     fcolor)
 
 
+def draw_rectangle(
+    screen: pygame.display,
+    xywh: tuple,
+    color: pygame.color,
+    padding: int,
+    width: int = 0,
+):
+    pygame.draw.rect(
+        screen,
+        color,
+        (
+            xywh[0] - padding,
+            xywh[1] - padding,
+            xywh[2] + padding * 2,
+            xywh[3] + padding * 2,
+        ),
+        width,
+    )
+
+
 def draw_polygon(screen, points: list, color: pygame.color, width=3):
     pygame.draw.polygon(screen, color, points, width)
 
 
-def init_display():
+def init_display(text_modifier: int = 1):
     pygame.init()
     info = pygame.display.Info()
     screen = pygame.display.set_mode((info.current_w, info.current_h))
     clock = pygame.time.Clock()
     display = Display(screen, clock)
-    display.map_cell_size = int(display.map_cell_size)
-    display.font = pygame.freetype.Font("JuliaMono-Bold.ttf", TEXT_SIZE)
+    display.font = pygame.freetype.Font("JuliaMono-Bold.ttf", text_modifier * TEXT_SIZE)
     pygame.key.set_repeat(200, 100)
     return display
 
@@ -525,8 +541,8 @@ def GameLoop(display):
     ticks = 0
     turn = 1
     pause = False
+    padding = 5
     while display.run:
-        ticks += display.clock.tick(60)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -549,8 +565,8 @@ def GameLoop(display):
                     pause = not pause
                     speed = 0 if pause else 1024
 
-        display.screen.fill("white")
         if not pause:
+            ticks += display.clock.tick(60)
             if ticks >= speed:
                 ticks = 0
                 cities_by_faction = {}
@@ -568,38 +584,89 @@ def GameLoop(display):
                     display.run = False
 
             # display.draw_map(gmap, background)
-            display.screen.blit(background, (0, 0))
-            display.draw_cities(cities, factions)
-            display.draw_units(unit_dict, factions)
 
             # ###########################################3
             # RIGHT_SIDE UI
-            display.draw_text(
-                f"TURN {turn}",
-                display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
-                5 * SCALE,
-                "black",
-            )
-            display.draw_text(
-                f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}",
-                display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
-                15 * SCALE,
-                "black",
+
+            text_layer = pygame.Surface((winw, winh), pygame.SRCALPHA)
+
+            text_turn, _ = display.font.render(f"TURN {turn}", "black")
+            text_faction, _ = display.font.render(
+                f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}", "black"
             )
             y = 30
+            text_city = []
+            greatest_width = 0
+            greatest_height = 0
             for fid, f in factions.items():
                 num_cities = 0
                 for c in cities:
                     if c.faction_id == fid:
                         num_cities += 1
-                display.draw_text(
-                    f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
-                    display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
-                    y * SCALE,
-                    "black",
-                )
-                y += 20
 
+                text_to_append = display.font.render(
+                    f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
+                    "black",
+                )[0]
+                if text_to_append.get_width() > greatest_width:
+                    greatest_width = text_to_append.get_width()
+                if text_to_append.get_height() > greatest_height:
+                    greatest_height = text_to_append.get_height()
+
+                text_city.append(
+                    [
+                        text_to_append,
+                        y,
+                    ]
+                )
+                # text_layer.blit(
+                #     text_city,
+                #     (display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE, y * SCALE),
+                # )
+                # display.draw_text(
+                #     f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
+                #     display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
+                #     y * SCALE,
+                #     "black",
+                # )
+                y += 20
+            origin_x = display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE
+            print(f"greatest_width: {greatest_width}")
+            print(f"greatest_height: {greatest_height}")
+            draw_rectangle(
+                text_layer,
+                (
+                    origin_x,
+                    0,
+                    1920 - display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
+                    (y - greatest_height + padding) * SCALE,
+                ),
+                "white",
+                5,
+            )
+
+            for text in text_city:
+                text_layer.blit(
+                    text[0],
+                    (
+                        origin_x,
+                        text[1] * SCALE,
+                    ),
+                )
+
+            text_layer.blit(
+                text_turn,
+                dest=(origin_x, 5 * SCALE),
+            )
+            text_layer.blit(
+                text_faction,
+                (origin_x, 15 * SCALE),
+            )
+
+            display.screen.blit(background, (0, 0))
+            display.screen.blit(text_layer, (0, 0))
+            display.draw_cities(cities, factions)
+            display.draw_units(unit_dict, factions)
             pygame.display.flip()
 
 
@@ -613,7 +680,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Jacob_Lorenzo_COS_598_Strategy_Game",
         description="Simulates a battle between two factions.",
-        epilog="Copyright (c) 2025 Jacob Lorenzo",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
