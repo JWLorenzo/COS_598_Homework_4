@@ -34,4 +34,5 @@ class GameMap:
                 #     params.get_random_terrain(random.random()))
 
     def get_cell(self, pos):
+        # print(pos)
         return self.cells[pos]

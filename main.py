@@ -12,11 +12,14 @@ import unit
 import command
 import cell_terrain
 import os
+import math
+import argparse
 
 MAP_WIDTH = 30
 MAP_HEIGHT = 20
-CELL_SIZE = 50
-DISPLAY_COORD = 1
+CELL_SIZE = 30
+TEXT_SIZE = 20
+SCALE = 1.75
 
 
 # ###################################################################
@@ -33,7 +36,6 @@ class Display:
         self.delta = 0
         self.font = None
         self.map_cell_size = CELL_SIZE
-        self.scaling_factor = 1.0
 
     # fmt: off
     def draw_gobj(self, gobj):
@@ -42,6 +44,12 @@ class Display:
             gobj.color,
             gobj.pos(),
             gobj.radius)
+        
+    def pointy_hex_corner(self,center:tuple, size:int, i:int) -> tuple:
+        angle_deg = 60 * i - 30
+        angle_rad = math.pi / 180 * angle_deg
+        return (center[0] + size * math.cos(angle_rad),
+                    center[1] + size * math.sin(angle_rad))
 
     def draw_text(self, msg, x, y, color):
         surface, rect = self.font.render(msg, color)
@@ -57,9 +65,11 @@ class Display:
 
     def draw_map(self, gmap,background):
         terrain_images = {}
+        cell_x= self.map_cell_size*math.sqrt(3)
+        cell_y= self.map_cell_size *2
         for terrain in cell_terrain.Terrain.__members__.keys():
             image = pygame.image.load(os.path.join(os.getcwd(),"Tile_Images",terrain.lower()+".png"))
-            image = pygame.transform.scale(image,(self.map_cell_size,self.map_cell_size))
+            image = pygame.transform.scale(image,(cell_x,cell_y))
             terrain_images[terrain] = image
 
         for v, c in gmap.cells.items():
@@ -72,43 +82,74 @@ class Display:
             #         self.map_cell_size,
             #         self.map_cell_size),
             #     width=0)
+            points = []
             rect = terrain_images[c.terrain.name].get_rect()
-            rect = rect.move(v.x * self.map_cell_size*.5,v.y*self.map_cell_size*.75)
+            rect = rect.move(v.x*self.map_cell_size*math.sqrt(3)/2 ,v.y*cell_y*.75)
             background.blit(terrain_images[c.terrain.name],rect )
+            for i in range(1,7):
+                x_coord = (v.x*self.map_cell_size*math.sqrt(3)/2 + self.map_cell_size*math.sqrt(3)/2)  
+                y_coord = (v.y * self.map_cell_size * 3/4*2 + self.map_cell_size)
+                side_size = self.map_cell_size
+                points.append(self.pointy_hex_corner( (x_coord,y_coord),side_size, i))
+
+            draw_polygon(background,points, "gray", width=3)
 
     def draw_cities(self, cities, factions):
         for c in cities:
             f = factions[c.faction_id]
-            pygame.draw.rect(
-                self.screen,
-                f.color,
-                pygame.rect.Rect(
-                    c.pos.x*self.map_cell_size*.5,
-                    c.pos.y*self.map_cell_size*.75,
-                    self.map_cell_size,
-                    self.map_cell_size
-                ),
-                width=2
-            )
-            self.draw_text(
-                    f"({c.pos.x},{c.pos.y})",
-                    c.pos.x*self.map_cell_size*.5, 
-                    c.pos.y*self.map_cell_size*.75,
-                    "black")
-                # print(f"odd row ({c.pos.x},{c.pos.y})")
-            
+            points = []
+            for i in range(1,7):
+                x_coord = (c.pos.x*self.map_cell_size*math.sqrt(3)/2 + self.map_cell_size*math.sqrt(3)/2)
+                y_coord = (c.pos.y*self.map_cell_size* 3/4*2 + self.map_cell_size)
+                side_size = self.map_cell_size
+                points.append(self.pointy_hex_corner( (x_coord,y_coord),side_size, i))
+
+            draw_polygon(self.screen,points, f.color)
+            # pygame.draw.rect(
+            #     self.screen,
+            #     f.color,
+            #     pygame.rect.Rect(
+            #         c.pos.x*self.map_cell_size*.5,
+            #         c.pos.y*self.map_cell_size*.75,
+            #         self.map_cell_size,
+            #         self.map_cell_size
+            #     ),
+            #     width=2
+            # )
+            if args.verbose:
+                self.draw_text(
+                        f"({c.pos.x},{c.pos.y})",
+                        (c.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2), 
+                        (c.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
+                        "black")
     def draw_units(self, unit_dict, factions):
         for fid, ulist in unit_dict.by_faction.items():
             fcolor = factions[fid].color
             for u in ulist:
                 msg  = u.utype
-                if DISPLAY_COORD:
+                if args.verbose:
                     msg = f"({u.pos.x},{u.pos.y}){u.utype}"
+                metrics = self.font.get_metrics(u.utype)[0]
+                print(metrics)
+                pygame.draw.rect(
+                self.screen,
+                "white",
+                pygame.rect.Rect(
+                    (u.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2),
+                    (u.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
+                    metrics[1]-metrics[0],
+                    metrics[3]-metrics[2],
+                )
+            )
                 self.draw_text(
                     msg,
-                    u.pos.x*self.map_cell_size*.5,
-                    u.pos.y*self.map_cell_size*.75,
+                    (u.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2),
+                    (u.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
                     fcolor)
+
+
+def draw_polygon(screen, points: list, color: pygame.color, width=3):
+    pygame.draw.polygon(screen, color, points, width)
 
 
 def init_display():
@@ -117,11 +158,8 @@ def init_display():
     screen = pygame.display.set_mode((info.current_w, info.current_h))
     clock = pygame.time.Clock()
     display = Display(screen, clock)
-    ScaleUI(display, MAP_WIDTH, MAP_HEIGHT)
-    display.map_cell_size = int(display.map_cell_size * display.scaling_factor)
-    display.font = pygame.freetype.Font(
-        "JuliaMono-Bold.ttf", 10 * display.scaling_factor
-    )
+    display.map_cell_size = int(display.map_cell_size)
+    display.font = pygame.freetype.Font("JuliaMono-Bold.ttf", TEXT_SIZE)
     pygame.key.set_repeat(200, 100)
     return display
 
@@ -164,9 +202,9 @@ def gen_cities(gmap, faction_ids):
 
             if new_city_y % 2 == 0:
 
-                new_city_x = random.randrange(0, gmap.width * 2 + 1, 2)
+                new_city_x = random.randrange(0, gmap.width * 2, 2)
             else:
-                new_city_x = random.randrange(1, gmap.width * 2 + 1, 2)
+                new_city_x = random.randrange(1, gmap.width * 2, 2)
 
             new_city_pos = vec2.Vec2(new_city_x, new_city_y)
             if new_city_pos not in city_positions:
@@ -436,14 +474,24 @@ def CheckForGameOver(cities):
     return len(faction_ids_with_cities) == 1, faction_ids_with_cities[0]
 
 
-def ScaleUI(display, map_width, map_height):
-    window_width, window_height = pygame.display.get_window_size()
-    print(f"Window size: {window_width}x{window_height}")
-    display.scaling_factor = min(
-        window_width / (map_width * display.map_cell_size),
-        window_height / (map_height * display.map_cell_size),
-    )
-    print(f"Scaling factor: {display.scaling_factor}")
+# def ScaleUI(display, map_width, map_height):
+#     window_width, window_height = pygame.display.get_window_size()
+#     x = window_width / ((map_width + 0.5) * display.map_cell_size)
+#     y = window_height / (
+#         (display.map_cell_size * map_height)
+#         - 2 * ((1 / 8) * display.map_cell_size)
+#         - ((1 / 4) * display.map_cell_size * (map_height - 2))
+#     )
+#     display.scaling_factor = pygame.Vector2(
+#         x,
+#         y,
+#     )
+#     if args.verbose:
+#         print(f"Window size: {window_width}x{window_height}")
+#         print(f"x: {x}")
+#         print(f"y: {y}")
+
+#         print(f"Scaling factor: {display.scaling_factor}")
 
 
 # ###########################################################3
@@ -465,7 +513,7 @@ def GameLoop(display):
     # - The map_cell_size given in the Display class above.
     gmap = gen_game_map(MAP_WIDTH, MAP_HEIGHT)
     background = pygame.Surface((winw, winh))
-    background.fill("white")
+    background.fill("brown")
     display.draw_map(gmap, background)
 
     factions = gen_factions(gmap)
@@ -526,11 +574,19 @@ def GameLoop(display):
 
             # ###########################################3
             # RIGHT_SIDE UI
-            display.draw_text(f"TURN {turn}", 805, 5, "black")
             display.draw_text(
-                f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}", 805, 25, "black"
+                f"TURN {turn}",
+                display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
+                5 * SCALE,
+                "black",
             )
-            y = 45
+            display.draw_text(
+                f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}",
+                display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
+                15 * SCALE,
+                "black",
+            )
+            y = 30
             for fid, f in factions.items():
                 num_cities = 0
                 for c in cities:
@@ -538,8 +594,8 @@ def GameLoop(display):
                         num_cities += 1
                 display.draw_text(
                     f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
-                    805,
-                    y,
+                    display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
+                    y * SCALE,
                     "black",
                 )
                 y += 20
@@ -554,4 +610,11 @@ def main():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="Jacob_Lorenzo_COS_598_Strategy_Game",
+        description="Simulates a battle between two factions.",
+        epilog="Copyright (c) 2025 Jacob Lorenzo",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true")
+    args = parser.parse_args()
     main()

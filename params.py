@@ -15,9 +15,9 @@ import random
 # to add them below and call them in game_map.py.
 CELL_TERRAIN_PROBABILITY = {
     cell_terrain.Terrain.Forest: 1,
-    cell_terrain.Terrain.Hill: 4,
-    cell_terrain.Terrain.Mountain: 0.5,
-    cell_terrain.Terrain.Field: 3,
+    cell_terrain.Terrain.Hill: 0.5,
+    cell_terrain.Terrain.Mountain: 1,
+    cell_terrain.Terrain.Field: 2,
     cell_terrain.Terrain.Desert: 0.5,
     cell_terrain.Terrain.Pasture: 0.5,
 }
