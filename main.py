@@ -17,7 +17,7 @@ import argparse
 
 MAP_WIDTH = 30
 MAP_HEIGHT = 20
-CELL_SIZE = 30
+CELL_SIZE = 32
 TEXT_SIZE = 20
 SCALE = 1.75
 
@@ -131,7 +131,8 @@ class Display:
                 if args.verbose:
                     msg = f"({u.pos.x},{u.pos.y}){u.utype}"
                 metrics = self.font.get_metrics(u.utype)[0]
-                print(metrics)
+                if args.verbose:
+                    print(f"metrics: {metrics}")
 
                 rect_x =(u.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2)
                 rect_y =(u.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size)
@@ -510,6 +511,13 @@ def CheckForGameOver(cities):
 #         print(f"Scaling factor: {display.scaling_factor}")
 
 
+def calculate_Influence(gmap, units, decay, inf_type):
+    # to prevent us from doing calculations on "useless tiles", I plan on iterating over units rather than the entire world
+    tiles_affected = []
+    for u in units:
+        pass
+
+
 # ###########################################################3
 # GAME LOOP
 # Where the magic happens.
@@ -541,7 +549,7 @@ def GameLoop(display):
     ticks = 0
     turn = 1
     pause = False
-    padding = 5
+    padding = 6
     while display.run:
 
         for event in pygame.event.get():
@@ -592,7 +600,7 @@ def GameLoop(display):
 
             text_turn, _ = display.font.render(f"TURN {turn}", "black")
             text_faction, _ = display.font.render(
-                f"{'Fctn':<5} {'C':>2} {'U':>3} {'M':>4}", "black"
+                f"{'Fctn':<5} {'Ci':>2} {'Un':>3} {'Mo':>4}", "black"
             )
             y = 30
             text_city = []
@@ -619,26 +627,17 @@ def GameLoop(display):
                         y,
                     ]
                 )
-                # text_layer.blit(
-                #     text_city,
-                #     (display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE, y * SCALE),
-                # )
-                # display.draw_text(
-                #     f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
-                #     display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
-                #     y * SCALE,
-                #     "black",
-                # )
                 y += 20
             origin_x = display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE
-            print(f"greatest_width: {greatest_width}")
-            print(f"greatest_height: {greatest_height}")
+            if args.verbose:
+                print(f"greatest_width: {greatest_width}")
+                print(f"greatest_height: {greatest_height}")
             draw_rectangle(
                 text_layer,
                 (
-                    origin_x,
+                    origin_x - padding,
                     0,
-                    1920 - display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE,
+                    1920 - display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE + padding,
                     (y - greatest_height + padding) * SCALE,
                 ),
                 "white",
@@ -668,6 +667,8 @@ def GameLoop(display):
             display.draw_cities(cities, factions)
             display.draw_units(unit_dict, factions)
             pygame.display.flip()
+        for g in gmap.cells:
+            print("cell", g, gmap.cells[g].terrain.name, gmap.cells[g].influences)
 
 
 def main():

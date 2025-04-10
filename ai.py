@@ -16,6 +16,7 @@ from command import *
 import random
 import unit
 
+
 class AI:
     # init:
     # Currently, the initializer adds nothing to the object.
@@ -29,7 +30,6 @@ class AI:
     # to do so.
     def __init__(self):
         pass
-
 
     # run_ai
     # Parameters:
@@ -63,13 +63,12 @@ class AI:
     # than those provided by the two commands, I suggest taking
     # the time to create additional Command subclasses and properly
     # implement them in the engine (main.py).
-    
+
     def run_ai(self, faction_id, factions, cities, units, gmap):
 
         # A list to hold our commands. This gets returned by
         # the function.
         cmds = []
-
 
         # Overview: randomly select a city we own and randomly
         # select a unit type (utype). Create a BuildUnitCommand
@@ -79,14 +78,15 @@ class AI:
         city_indexes = list(range(len(my_cities)))
         random.shuffle(city_indexes)
         for ci in city_indexes:
-            cmd = BuildUnitCommand(faction_id,
-                               my_cities[ci].ID, 
-                               random.choice(['R', 'S', 'P']))
+            cmd = BuildUnitCommand(
+                faction_id, my_cities[ci].ID, random.choice(["R", "S", "P"])
+            )
             cmds.append(cmd)
 
         # Overview: issue a move to every unit giving a random
         # direction. Directions can be found in the vec2.py file.
         # They are single char strings: 'N', 'E', 'W', 'S'.
+
         my_units = units[faction_id]
         for u in my_units:
             rand_dir = random.choice(list(vec2.MOVES.keys()))

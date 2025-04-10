@@ -16,6 +16,7 @@ import cell_terrain
 class Cell:
     def __init__(self, terrain):
         self.terrain = terrain
+        self.influences = [0, 0, 0]
 
     # TODO: replace this with a data member instead
     # of a function.
