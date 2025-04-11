@@ -527,6 +527,19 @@ def doublewidth_distance(a: vec2.Vec2, b: tuple) -> int:
     return drow + max(0, (dcol - drow) / 2)
 
 
+def assign_influence(
+    gmap: game_map.GameMap,
+    coord: vec2.Vec2,
+    inf_index: int,
+    fac_index: int,
+    start: int,
+    dist: int,
+    decay: int,
+) -> game_map.GameMap:
+    gmap.cells[coord].influences[inf_index][fac_index] += max(0, start - dist * decay)
+    return gmap
+
+
 def influence_cities(
     center_coords: vec2.Vec2,
     faction_id: str,
@@ -555,15 +568,32 @@ def influence_cities(
                                 gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][
                                     0
                                 ] += max(0, start_inf - dist * decay)
+
+                                gmap = assign_influence(
+                                    gmap,
+                                    vec2.Vec2(tile_x, tile_y),
+                                    0,
+                                    0,
+                                    start_inf,
+                                    dist,
+                                    decay,
+                                )
                                 if (
                                     affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
                                     is None
                                 ):
                                     affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
                             elif faction_id == "Blue":
-                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][
-                                    1
-                                ] += max(0, start_inf - dist * decay)
+                                gmap = assign_influence(
+                                    gmap,
+                                    vec2.Vec2(tile_x, tile_y),
+                                    0,
+                                    1,
+                                    start_inf,
+                                    dist,
+                                    decay,
+                                )
+
                                 if (
                                     affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
                                     is None
@@ -602,13 +632,25 @@ def influence_units(
                         if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
                             if faction_id == "Red":
 
-                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[1][
-                                    0
-                                ] += max(0, start_inf - dist * decay)
+                                gmap = assign_influence(
+                                    gmap,
+                                    vec2.Vec2(tile_x, tile_y),
+                                    1,
+                                    0,
+                                    start_inf,
+                                    dist,
+                                    decay,
+                                )
 
-                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[2][
-                                    0
-                                ] += max(0, start_inf - dist * decay)
+                                gmap = assign_influence(
+                                    gmap,
+                                    vec2.Vec2(tile_x, tile_y),
+                                    2,
+                                    0,
+                                    start_inf,
+                                    dist,
+                                    decay,
+                                )
 
                                 if (
                                     affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
@@ -618,12 +660,26 @@ def influence_units(
 
                             elif faction_id == "Blue":
 
-                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[1][
-                                    1
-                                ] += max(0, start_inf - dist * decay)
-                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[2][
-                                    1
-                                ] += max(0, start_inf - dist * decay)
+                                gmap = assign_influence(
+                                    gmap,
+                                    vec2.Vec2(tile_x, tile_y),
+                                    1,
+                                    1,
+                                    start_inf,
+                                    dist,
+                                    decay,
+                                )
+
+                                gmap = assign_influence(
+                                    gmap,
+                                    vec2.Vec2(tile_x, tile_y),
+                                    2,
+                                    1,
+                                    start_inf,
+                                    dist,
+                                    decay,
+                                )
+
                                 if (
                                     affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
                                     is None
