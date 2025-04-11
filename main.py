@@ -148,9 +148,9 @@ class Display:
                 
     def draw_influence(self, gmap):
         for c in gmap.cells:
-            if sum(gmap.cells[c].influences) > 0:
+            if sum(map(sum,gmap.cells[c].influences)) > 0:
                 self.draw_text(
-                            f"{int(gmap.cells[c].influences[0])},{int(gmap.cells[c].influences[1])},{int(gmap.cells[c].influences[2])}",
+                            f"{gmap.cells[c].influences[0]},{gmap.cells[c].influences[1]},{gmap.cells[c].influences[2]}",
                             (c.x*self.map_cell_size*math.sqrt(3)/2), 
                             (c.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
                             "black",scale=(.7,.7))
@@ -527,15 +527,15 @@ def doublewidth_distance(a: vec2.Vec2, b: tuple) -> int:
     return drow + max(0, (dcol - drow) / 2)
 
 
-def influence(
+def influence_cities(
     center_coords: vec2.Vec2,
+    faction_id: str,
     radius: int,
     gmap: game_map.GameMap,
     start_inf: int,
     decay: int,
-    inf_type: int,
-) -> list:
-    tiles = []
+    affected_dict: dict,
+) -> dict:
     for dx in range(-radius, radius + 1):
         for dy in range(-radius, radius + 1):
             tile_y = center_coords.y + dy
@@ -551,32 +551,131 @@ def influence(
                     dist = doublewidth_distance(center_coords, (tile_x, tile_y))
                     if dist <= radius:
                         if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
-                            gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[
-                                inf_type
-                            ] += max(0, start_inf - dist * decay)
-                            tiles.append((tile_x, tile_y))
+                            if faction_id == "Red":
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][
+                                    0
+                                ] += max(0, start_inf - dist * decay)
+                                if (
+                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
+                                    is None
+                                ):
+                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
+                            elif faction_id == "Blue":
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][
+                                    1
+                                ] += max(0, start_inf - dist * decay)
+                                if (
+                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
+                                    is None
+                                ):
+                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
                         else:
                             print(
                                 f"Tile ({tile_x}, {tile_y}) is out of bounds for the map."
                             )
-    return tiles
+    return affected_dict
 
 
-def influenced_tiles(
+def influence_units(
+    center_coords: vec2.Vec2,
+    faction_id: str,
+    radius: int,
+    gmap: game_map.GameMap,
+    start_inf: int,
+    decay: int,
+    affected_dict: dict,
+) -> dict:
+    for dx in range(-radius, radius + 1):
+        for dy in range(-radius, radius + 1):
+            tile_y = center_coords.y + dy
+
+            if 0 <= tile_y < MAP_HEIGHT:
+                tile_x = center_coords.x + dx * 2
+
+                if tile_y % 2 == 1 and center_coords.y % 2 == 0:
+                    tile_x += 1
+                if tile_y % 2 == 0 and center_coords.y % 2 == 1:
+                    tile_x -= 1
+                if 0 <= tile_x < MAP_WIDTH * 2:
+                    dist = doublewidth_distance(center_coords, (tile_x, tile_y))
+                    if dist <= radius:
+                        if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
+                            if faction_id == "Red":
+
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[1][
+                                    0
+                                ] += max(0, start_inf - dist * decay)
+
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[2][
+                                    0
+                                ] += max(0, start_inf - dist * decay)
+
+                                if (
+                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
+                                    is None
+                                ):
+                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
+
+                            elif faction_id == "Blue":
+
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[1][
+                                    1
+                                ] += max(0, start_inf - dist * decay)
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[2][
+                                    1
+                                ] += max(0, start_inf - dist * decay)
+                                if (
+                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
+                                    is None
+                                ):
+                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
+                        else:
+                            print(
+                                f"Tile ({tile_x}, {tile_y}) is out of bounds for the map."
+                            )
+    return affected_dict
+
+
+def influenced_tiles_cities(
     gmap: game_map.GameMap,
     units: list,
     radius: int,
     decay: int,
-    inf_type: int,
     start_inf: int,
-) -> list:
+    affected_dict: dict,
+) -> dict:
     # to prevent us from doing calculations on excessive amounts of tiles, I plan on iterating over units rather than the entire world
-    tiles_affected = []
     for u in units:
         if args.verbose:
             print("u is at", u.pos)
-        tiles_affected += influence(u.pos, radius, gmap, start_inf, decay, inf_type)
-    return tiles_affected
+        affected_dict = influence_cities(
+            u.pos, u.faction_id, radius, gmap, start_inf, decay, affected_dict
+        )
+    return affected_dict
+
+
+def influenced_tiles_units(
+    gmap: game_map.GameMap,
+    units: list,
+    radius: int,
+    decay: int,
+    start_inf: int,
+    affected_dict: dict,
+) -> dict:
+    # to prevent us from doing calculations on excessive amounts of tiles, I plan on iterating over units rather than the entire world
+    for u in units:
+        if args.verbose:
+            print("u is at", units[u].pos)
+        affected_dict = influence_units(
+            units[u].pos,
+            units[u].faction_id,
+            radius,
+            gmap,
+            start_inf,
+            decay,
+            affected_dict,
+        )
+    return affected_dict
 
 
 # ###########################################################3
@@ -611,7 +710,7 @@ def GameLoop(display):
     turn = 1
     pause = False
     padding = 6
-    tiles_affected = []
+    affected_dict = {}
     while display.run:
 
         for event in pygame.event.get():
@@ -723,21 +822,31 @@ def GameLoop(display):
                 text_faction,
                 (origin_x, 15 * SCALE),
             )
-            for i in tiles_affected:
-                gmap.cells[vec2.Vec2(i[0], i[1])].influences = [0, 0, 0]
-            tiles_affected = influenced_tiles(
+            for i in affected_dict:
+                gmap.cells[vec2.Vec2(i.x, i.y)].influences = [[0, 0], [0, 0], [0, 0]]
+            affected_dict.clear()
+            affected_dict = influenced_tiles_cities(
                 gmap,
                 cities,
                 radius=2,
                 decay=1,
-                inf_type=0,
-                start_inf=10,
+                start_inf=5,
+                affected_dict=affected_dict,
+            )
+            affected_dict = influenced_tiles_units(
+                gmap,
+                unit_dict.by_pos,
+                radius=2,
+                decay=1,
+                start_inf=5,
+                affected_dict=affected_dict,
             )
             display.screen.blit(background, (0, 0))
             display.screen.blit(text_layer, (0, 0))
             display.draw_cities(cities, factions)
             display.draw_units(unit_dict, factions)
-            display.draw_influence(gmap)
+            if args.verbose:
+                display.draw_influence(gmap)
             pygame.display.flip()
         for g in gmap.cells:
             print("cell", g, gmap.cells[g].terrain.name, gmap.cells[g].influences)

@@ -45,5 +45,3 @@ Defense:
 - To calculate influence, I based my algorithm off their algorithm for distance calculations for a double width tile format and then modified it to iterate over ranges. I used a double width coordinate system because it seemed like it would be the easies to implement when translating from a grid-based to hex-based. 
 - I used this source because no doubt would this have been a waaay easier assignment if I decided to use grid based, but I saw the insanely cool work that Sophie(?) did with the isometric view and it inspired me to do something cool for this one as well. It also gave me a good opportunity to gain a greater understanding of pygame because I haven't actually used it all that much, so it was a learning experience into how to optimize calculations for video games because I noticed that the influence example you showed us in class got waaay slower when I tooled around with it by printing out each iteration. It progressively got slower, so I realized that iterating over every tile to calculate influence wasn't going to cut it. To optimize it, I decided to make an influence function that notes a given criteria.
 
-1,2,3,4,5,6
-2,6,8,12,15,18
