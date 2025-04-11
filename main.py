@@ -51,8 +51,9 @@ class Display:
         return (center[0] + size * math.cos(angle_rad),
                     center[1] + size * math.sin(angle_rad))
 
-    def draw_text(self, msg, x, y, color):
+    def draw_text(self, msg, x, y, color,scale=(1,1),):
         surface, rect = self.font.render(msg, color)
+        surface = pygame.transform.scale(surface, (int(rect.width*scale[0]), int(rect.height*scale[1])))
         self.screen.blit(surface, (x, y))
 
     def draw_line(self, p1, p2, color, width=1):
@@ -92,7 +93,7 @@ class Display:
                 side_size = self.map_cell_size
                 points.append(self.pointy_hex_corner( (x_coord,y_coord),side_size, i))
 
-            draw_polygon(background,points, "gray", width=3)
+            draw_polygon(background,points, "tan", width=3)
 
     def draw_cities(self, cities, factions):
         for c in cities:
@@ -144,6 +145,15 @@ class Display:
                     (u.pos.x*self.map_cell_size*math.sqrt(3)/2+self.map_cell_size*math.sqrt(3)/2),
                     (u.pos.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
                     fcolor)
+                
+    def draw_influence(self, gmap):
+        for c in gmap.cells:
+            if sum(gmap.cells[c].influences) > 0:
+                self.draw_text(
+                            f"{int(gmap.cells[c].influences[0])},{int(gmap.cells[c].influences[1])},{int(gmap.cells[c].influences[2])}",
+                            (c.x*self.map_cell_size*math.sqrt(3)/2), 
+                            (c.y*self.map_cell_size* 3/4*2 +self.map_cell_size),
+                            "black",scale=(.7,.7))
 
 
 def draw_rectangle(
@@ -511,11 +521,62 @@ def CheckForGameOver(cities):
 #         print(f"Scaling factor: {display.scaling_factor}")
 
 
-def calculate_Influence(gmap, units, decay, inf_type):
-    # to prevent us from doing calculations on "useless tiles", I plan on iterating over units rather than the entire world
+def doublewidth_distance(a: vec2.Vec2, b: tuple) -> int:
+    dcol = abs(a.x - b[0])
+    drow = abs(a.y - b[1])
+    return drow + max(0, (dcol - drow) / 2)
+
+
+def influence(
+    center_coords: vec2.Vec2,
+    radius: int,
+    gmap: game_map.GameMap,
+    start_inf: int,
+    decay: int,
+    inf_type: int,
+) -> list:
+    tiles = []
+    for dx in range(-radius, radius + 1):
+        for dy in range(-radius, radius + 1):
+            tile_y = center_coords.y + dy
+
+            if 0 <= tile_y < MAP_HEIGHT:
+                tile_x = center_coords.x + dx * 2
+
+                if tile_y % 2 == 1 and center_coords.y % 2 == 0:
+                    tile_x += 1
+                if tile_y % 2 == 0 and center_coords.y % 2 == 1:
+                    tile_x -= 1
+                if 0 <= tile_x < MAP_WIDTH * 2:
+                    dist = doublewidth_distance(center_coords, (tile_x, tile_y))
+                    if dist <= radius:
+                        if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
+                            gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[
+                                inf_type
+                            ] += max(0, start_inf - dist * decay)
+                            tiles.append((tile_x, tile_y))
+                        else:
+                            print(
+                                f"Tile ({tile_x}, {tile_y}) is out of bounds for the map."
+                            )
+    return tiles
+
+
+def influenced_tiles(
+    gmap: game_map.GameMap,
+    units: list,
+    radius: int,
+    decay: int,
+    inf_type: int,
+    start_inf: int,
+) -> list:
+    # to prevent us from doing calculations on excessive amounts of tiles, I plan on iterating over units rather than the entire world
     tiles_affected = []
     for u in units:
-        pass
+        if args.verbose:
+            print("u is at", u.pos)
+        tiles_affected += influence(u.pos, radius, gmap, start_inf, decay, inf_type)
+    return tiles_affected
 
 
 # ###########################################################3
@@ -550,6 +611,7 @@ def GameLoop(display):
     turn = 1
     pause = False
     padding = 6
+    tiles_affected = []
     while display.run:
 
         for event in pygame.event.get():
@@ -661,11 +723,21 @@ def GameLoop(display):
                 text_faction,
                 (origin_x, 15 * SCALE),
             )
-
+            for i in tiles_affected:
+                gmap.cells[vec2.Vec2(i[0], i[1])].influences = [0, 0, 0]
+            tiles_affected = influenced_tiles(
+                gmap,
+                cities,
+                radius=2,
+                decay=1,
+                inf_type=0,
+                start_inf=10,
+            )
             display.screen.blit(background, (0, 0))
             display.screen.blit(text_layer, (0, 0))
             display.draw_cities(cities, factions)
             display.draw_units(unit_dict, factions)
+            display.draw_influence(gmap)
             pygame.display.flip()
         for g in gmap.cells:
             print("cell", g, gmap.cells[g].terrain.name, gmap.cells[g].influences)
