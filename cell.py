@@ -18,8 +18,6 @@ class Cell:
         self.terrain = terrain
         self.influences = [[0, 0], [0, 0], [0, 0]]
 
-    # TODO: replace this with a data member instead
-    # of a function.
     def get_color(self):
         match self.terrain:
             case cell_terrain.Terrain.Field:
@@ -64,3 +62,24 @@ class Cell:
                 return 2
             case cell_terrain.Terrain.Pasture:
                 return 1
+
+    def get_terrain_penalty(self):
+        match self.terrain:
+            case cell_terrain.Terrain.Field:
+                return 2
+            case cell_terrain.Terrain.Forest:
+                return 3
+            case cell_terrain.Terrain.Desert:
+                return 4
+            case cell_terrain.Terrain.Hill:
+                return 3
+            case cell_terrain.Terrain.Mountain:
+                return 5
+            case cell_terrain.Terrain.Pasture:
+                return 2
+
+    def get_influence(self, faction_id, influence_type):
+        if faction_id == "Red":
+            return self.influences[influence_type][0]
+        elif faction_id == "Blue":
+            return self.influences[influence_type][1]

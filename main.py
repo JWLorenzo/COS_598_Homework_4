@@ -14,12 +14,15 @@ import cell_terrain
 import os
 import math
 import argparse
+from queue import PriorityQueue
+from typing import Optional
 
 MAP_WIDTH = 30
 MAP_HEIGHT = 20
 CELL_SIZE = 32
 TEXT_SIZE = 20
 SCALE = 1.75
+DEBUG_MODE = True
 
 
 # ###################################################################
@@ -527,6 +530,78 @@ def doublewidth_distance(a: vec2.Vec2, b: tuple) -> int:
     return drow + max(0, (dcol - drow) / 2)
 
 
+def doublewidth_distance(a: vec2.Vec2, b: vec2.Vec2) -> int:
+    dcol = abs(a.x - b.x)
+    drow = abs(a.y - b.y)
+    return drow + max(0, (dcol - drow) / 2)
+
+
+def heuristic(start, goal):
+    return doublewidth_distance(start, goal)
+
+
+def get_neighbors(gmap, coord):
+    neighbors = []
+    for i in vec2.MOVES:
+        delta = vec2.Vec2(0, 0)
+        try:
+            delta = vec2.MOVES[i]
+        except KeyError:
+            print(f"{i} is not a valid direction")
+        new_pos = coord + delta
+
+        new_pos.mod(gmap.width, gmap.height)
+        neighbors.append((new_pos, i))
+    return neighbors
+
+
+def reconstruct_path(
+    came_from: dict[vec2.Vec2, str, vec2.Vec2], start: vec2.Vec2, goal: vec2.Vec2
+):
+    current: list[vec2.Vec2, str] = [goal, None]
+    path: list[vec2.Vec2] = []
+    if goal not in came_from:
+        return []
+    while current[0] != start:
+        path.append(current)
+        current = came_from[current[0]]
+    path.reverse()
+    return path
+
+
+# Basic A* algorithm
+def a_star(start: vec2.Vec2, goal: vec2.Vec2, gmap: game_map.GameMap):
+    frontier = PriorityQueue()
+    frontier.put((0, (start, None)))
+
+    came_from: dict[vec2.Vec2, str, Optional[vec2.Vec2]] = {}
+    cost_so_far: dict[vec2.Vec2, float] = {}
+
+    came_from[start] = None
+    cost_so_far[start] = 0
+
+    while not frontier.empty():
+        _, current = frontier.get()
+
+        if current[0] == goal:
+            break
+
+        for next in get_neighbors(gmap, current[0]):
+
+            new_cost = (
+                cost_so_far[current[0]] + gmap.cells[next[0]].get_terrain_penalty()
+            )
+
+            if next[0] not in cost_so_far or new_cost < cost_so_far[next[0]]:
+                cost_so_far[next[0]] = new_cost
+                priority = new_cost + heuristic(next[0], goal)
+
+                frontier.put((priority, (next[0], next[1])))
+                came_from[next[0]] = (current[0], next[1])
+
+    return came_from, cost_so_far
+
+
 def assign_influence(
     gmap: game_map.GameMap,
     coord: vec2.Vec2,
@@ -767,148 +842,164 @@ def GameLoop(display):
     pause = False
     padding = 6
     affected_dict = {}
-    while display.run:
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                display.run = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q:
+    if DEBUG_MODE:
+        came_from, cost_so_far = a_star(vec2.Vec2(5, 5), vec2.Vec2(28, 16), gmap)
+        # for i in came_from:
+        #     print(i, came_from[i])
+        for i in reconstruct_path(came_from, vec2.Vec2(5, 5), vec2.Vec2(28, 16)):
+            print(i[0], i[1])
+    else:
+        while display.run:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     display.run = False
-                elif event.key == pygame.K_LEFT:
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        display.run = False
+                    elif event.key == pygame.K_LEFT:
 
-                    # Lower if you want a faster game speed.
-                    if speed > 128:
-                        speed = speed // 2
-                elif event.key == pygame.K_RIGHT:
+                        # Lower if you want a faster game speed.
+                        if speed > 128:
+                            speed = speed // 2
+                    elif event.key == pygame.K_RIGHT:
 
-                    # Increase if you want a slower game speed.
-                    if speed < 4096:
-                        speed = speed * 2
-                elif event.key == pygame.K_p:
-                    # Pause the game.
-                    pause = not pause
-                    speed = 0 if pause else 1024
+                        # Increase if you want a slower game speed.
+                        if speed < 4096:
+                            speed = speed * 2
+                    elif event.key == pygame.K_p:
+                        # Pause the game.
+                        pause = not pause
+                        speed = 0 if pause else 1024
 
-        if not pause:
-            ticks += display.clock.tick(60)
-            if ticks >= speed:
-                ticks = 0
-                cities_by_faction = {}
+            if not pause:
+                ticks += display.clock.tick(60)
+                if ticks >= speed:
+                    ticks = 0
+                    cities_by_faction = {}
+                    for fid, f in factions.items():
+                        faction_cities = FactionPreTurn(cities, f)
+                        cities_by_faction[fid] = faction_cities
+
+                    commands = Turn(
+                        factions, gmap, cities_by_faction, unit_dict.by_faction
+                    )
+                    RunAllCommands(commands, factions, unit_dict, cities, gmap)
+                    turn += 1
+
+                    game_over = CheckForGameOver(cities)
+                    if game_over[0]:
+                        print(f"Winning faction: {game_over[1]}")
+                        display.run = False
+
+                # display.draw_map(gmap, background)
+
+                # ###########################################3
+                # RIGHT_SIDE UI
+
+                text_layer = pygame.Surface((winw, winh), pygame.SRCALPHA)
+
+                text_turn, _ = display.font.render(f"TURN {turn}", "black")
+                text_faction, _ = display.font.render(
+                    f"{'Fctn':<5} {'Ci':>2} {'Un':>3} {'Mo':>4}", "black"
+                )
+                y = 30
+                text_city = []
+                greatest_width = 0
+                greatest_height = 0
                 for fid, f in factions.items():
-                    faction_cities = FactionPreTurn(cities, f)
-                    cities_by_faction[fid] = faction_cities
+                    num_cities = 0
+                    for c in cities:
+                        if c.faction_id == fid:
+                            num_cities += 1
 
-                commands = Turn(factions, gmap, cities_by_faction, unit_dict.by_faction)
-                RunAllCommands(commands, factions, unit_dict, cities, gmap)
-                turn += 1
+                    text_to_append = display.font.render(
+                        f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
+                        "black",
+                    )[0]
+                    if text_to_append.get_width() > greatest_width:
+                        greatest_width = text_to_append.get_width()
+                    if text_to_append.get_height() > greatest_height:
+                        greatest_height = text_to_append.get_height()
 
-                game_over = CheckForGameOver(cities)
-                if game_over[0]:
-                    print(f"Winning faction: {game_over[1]}")
-                    display.run = False
-
-            # display.draw_map(gmap, background)
-
-            # ###########################################3
-            # RIGHT_SIDE UI
-
-            text_layer = pygame.Surface((winw, winh), pygame.SRCALPHA)
-
-            text_turn, _ = display.font.render(f"TURN {turn}", "black")
-            text_faction, _ = display.font.render(
-                f"{'Fctn':<5} {'Ci':>2} {'Un':>3} {'Mo':>4}", "black"
-            )
-            y = 30
-            text_city = []
-            greatest_width = 0
-            greatest_height = 0
-            for fid, f in factions.items():
-                num_cities = 0
-                for c in cities:
-                    if c.faction_id == fid:
-                        num_cities += 1
-
-                text_to_append = display.font.render(
-                    f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
-                    "black",
-                )[0]
-                if text_to_append.get_width() > greatest_width:
-                    greatest_width = text_to_append.get_width()
-                if text_to_append.get_height() > greatest_height:
-                    greatest_height = text_to_append.get_height()
-
-                text_city.append(
-                    [
-                        text_to_append,
-                        y,
-                    ]
-                )
-                y += 20
-            origin_x = display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE
-            if args.verbose:
-                print(f"greatest_width: {greatest_width}")
-                print(f"greatest_height: {greatest_height}")
-            draw_rectangle(
-                text_layer,
-                (
-                    origin_x - padding,
-                    0,
-                    1920 - display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE + padding,
-                    (y - greatest_height + padding) * SCALE,
-                ),
-                "white",
-                5,
-            )
-
-            for text in text_city:
-                text_layer.blit(
-                    text[0],
+                    text_city.append(
+                        [
+                            text_to_append,
+                            y,
+                        ]
+                    )
+                    y += 20
+                origin_x = display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE
+                if args.verbose:
+                    print(f"greatest_width: {greatest_width}")
+                    print(f"greatest_height: {greatest_height}")
+                draw_rectangle(
+                    text_layer,
                     (
-                        origin_x,
-                        text[1] * SCALE,
+                        origin_x - padding,
+                        0,
+                        1920
+                        - display.map_cell_size * (MAP_WIDTH + 0.5) * SCALE
+                        + padding,
+                        (y - greatest_height + padding) * SCALE,
                     ),
+                    "white",
+                    5,
                 )
 
-            text_layer.blit(
-                text_turn,
-                dest=(origin_x, 5 * SCALE),
-            )
-            text_layer.blit(
-                text_faction,
-                (origin_x, 15 * SCALE),
-            )
-            for i in affected_dict:
-                gmap.cells[vec2.Vec2(i.x, i.y)].influences = [[0, 0], [0, 0], [0, 0]]
-            affected_dict.clear()
-            affected_dict = influenced_tiles_cities(
-                gmap,
-                cities,
-                radius=2,
-                decay=1,
-                start_inf=5,
-                affected_dict=affected_dict,
-            )
-            affected_dict = influenced_tiles_units(
-                gmap,
-                unit_dict.by_pos,
-                radius=2,
-                decay=1,
-                start_inf=5,
-                affected_dict=affected_dict,
-            )
-            display.screen.blit(background, (0, 0))
-            display.screen.blit(text_layer, (0, 0))
-            display.draw_cities(cities, factions)
-            display.draw_units(unit_dict, factions)
-            if args.verbose:
-                display.draw_influence(gmap)
-            pygame.display.flip()
-        for g in gmap.cells:
-            print("cell", g, gmap.cells[g].terrain.name, gmap.cells[g].influences)
+                for text in text_city:
+                    text_layer.blit(
+                        text[0],
+                        (
+                            origin_x,
+                            text[1] * SCALE,
+                        ),
+                    )
+
+                text_layer.blit(
+                    text_turn,
+                    dest=(origin_x, 5 * SCALE),
+                )
+                text_layer.blit(
+                    text_faction,
+                    (origin_x, 15 * SCALE),
+                )
+                for i in affected_dict:
+                    gmap.cells[vec2.Vec2(i.x, i.y)].influences = [
+                        [0, 0],
+                        [0, 0],
+                        [0, 0],
+                    ]
+                affected_dict.clear()
+                affected_dict = influenced_tiles_cities(
+                    gmap,
+                    cities,
+                    radius=2,
+                    decay=1,
+                    start_inf=5,
+                    affected_dict=affected_dict,
+                )
+                affected_dict = influenced_tiles_units(
+                    gmap,
+                    unit_dict.by_pos,
+                    radius=2,
+                    decay=1,
+                    start_inf=5,
+                    affected_dict=affected_dict,
+                )
+                display.screen.blit(background, (0, 0))
+                display.screen.blit(text_layer, (0, 0))
+                display.draw_cities(cities, factions)
+                display.draw_units(unit_dict, factions)
+                if args.verbose:
+                    display.draw_influence(gmap)
+                pygame.display.flip()
+            for g in gmap.cells:
+                print("cell", g, gmap.cells[g].terrain.name, gmap.cells[g].influences)
 
 
 def main():
+
     random.seed(None)
     display = init_display()
     GameLoop(display)

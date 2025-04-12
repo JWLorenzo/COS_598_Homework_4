@@ -23,6 +23,9 @@ class Vec2:
     def __str__(self):
         return f"({self.x},{self.y})"
 
+    def __lt__(self, o):
+        return self.x < o.x or (self.x == o.x and self.y < o.y)
+
     def __add__(self, o):
         return Vec2(self.x + o.x, self.y + o.y)
 
