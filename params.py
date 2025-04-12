@@ -13,6 +13,7 @@ import random
 # is completely random. There's no fancy procedural content gen.
 # algorithms here. If you want something fancier, you'd need
 # to add them below and call them in game_map.py.
+
 CELL_TERRAIN_PROBABILITY = {
     cell_terrain.Terrain.Forest: 1,
     cell_terrain.Terrain.Hill: 0.5,
@@ -25,6 +26,14 @@ CELL_TERRAIN_PROBABILITY = {
 TERRAINS = list(CELL_TERRAIN_PROBABILITY.keys())
 PROBS = list(CELL_TERRAIN_PROBABILITY.values())
 TOTAL = sum(PROBS)
+
+MAP_WIDTH = 40
+MAP_HEIGHT = 30
+CELL_SIZE = 20
+TEXT_SIZE = 20
+SCALE = 1.75
+DEBUG_MODE = False
+
 
 running_sum = 0
 for i, p in enumerate(PROBS):

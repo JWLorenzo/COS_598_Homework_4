@@ -15,6 +15,7 @@
 from command import *
 import random
 import unit
+from pathfinding import reconstruct_path, a_star
 
 
 class AI:
@@ -89,6 +90,13 @@ class AI:
 
         my_units = units[faction_id]
         for u in my_units:
+            came_from, cost_so_far = a_star(vec2.Vec2(5, 5), vec2.Vec2(28, 16), gmap)
+
+            if faction_id == "Red":
+                u.queue = reconstruct_path(came_from, u.pos, gmap.objectives["Blue"][0])
+            else:
+                u.queue = reconstruct_path(came_from, u.pos, gmap.objectives["Red"][0])
+            # Get a random direction from the vec2.MOVES dictionary.
             rand_dir = random.choice(list(vec2.MOVES.keys()))
             cmd = MoveUnitCommand(faction_id, u.ID, rand_dir)
             cmds.append(cmd)

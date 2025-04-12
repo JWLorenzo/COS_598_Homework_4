@@ -13,6 +13,7 @@ class GameMap:
         self.height = height
         self.width = width
         self.cells = {}
+        self.objectives = {"Red": [], "Blue": []}
         # for x in range(width):
         #     for y in range(height):
         #         self.cells[vec2.Vec2(x, y)] = cell.Cell(
