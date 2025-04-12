@@ -22,7 +22,7 @@ class Faction:
 
     def can_build_unit(self, cost):
         return cost <= self.money
-        
+
     # ################################################################
-    def run_ai(self, factions, cities, units, gmap):
-        return self.ai.run_ai(self.ID, factions, cities, units, gmap)
+    def run_ai(self, factions, cities, units, gmap, unit_dict):
+        return self.ai.run_ai(self.ID, factions, cities, units, gmap, unit_dict)

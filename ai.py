@@ -65,8 +65,7 @@ class AI:
     # the time to create additional Command subclasses and properly
     # implement them in the engine (main.py).
 
-    def run_ai(self, faction_id, factions, cities, units, gmap):
-
+    def run_ai(self, faction_id, factions, cities, units, gmap, unit_dict):
         # A list to hold our commands. This gets returned by
         # the function.
         cmds = []
@@ -90,16 +89,37 @@ class AI:
 
         my_units = units[faction_id]
         for u in my_units:
-            came_from, cost_so_far = a_star(vec2.Vec2(5, 5), vec2.Vec2(28, 16), gmap)
+            if len(u.queue) > 0 and u.queue[-1][0] == u.pos:
+                u.queue.pop()
 
-            if faction_id == "Red":
-                u.queue = reconstruct_path(came_from, u.pos, gmap.objectives["Blue"][0])
+            if not (len(u.queue) == 0):
+                next_pos = u.pos + vec2.MOVES[u.queue[-1][1]]
+                next_pos.mod(gmap.width, gmap.height)
+                if (
+                    next_pos in unit_dict.by_pos
+                    and unit_dict.by_pos[next_pos].faction_id == faction_id
+                ):
+                    u.queue.clear()
+                    rand_dir = random.choice(list(vec2.MOVES.keys()))
+                    cmds.append(MoveUnitCommand(faction_id, u.ID, rand_dir))
+                    continue
+
+            if len(u.queue) == 0:
+                target = (
+                    gmap.highest["Red"][1]
+                    if faction_id == "Blue"
+                    else gmap.highest["Blue"][1]
+                )
+                if target:
+                    came_from, cost_so_far = a_star(
+                        u.pos, target, gmap, unit_dict, u.faction_id
+                    )
+                    u.queue = reconstruct_path(came_from, u.pos, target)
+            if len(u.queue) > 0:
+                move_dir = u.queue[-1][1]
             else:
-                u.queue = reconstruct_path(came_from, u.pos, gmap.objectives["Red"][0])
-            # Get a random direction from the vec2.MOVES dictionary.
-            rand_dir = random.choice(list(vec2.MOVES.keys()))
-            cmd = MoveUnitCommand(faction_id, u.ID, rand_dir)
-            cmds.append(cmd)
+                move_dir = random.choice(list(vec2.MOVES.keys()))
 
-        # return all the command objects.
+            cmds.append(MoveUnitCommand(faction_id, u.ID, move_dir))
+
         return cmds

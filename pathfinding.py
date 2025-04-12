@@ -21,18 +21,18 @@ def heuristic(start, goal):
     return doublewidth_distance(start, goal)
 
 
-def get_neighbors(gmap, coord):
+def get_neighbors(gmap, coord, unit_dict, faction_id):
     neighbors = []
-    for i in vec2.MOVES:
-        delta = vec2.Vec2(0, 0)
-        try:
-            delta = vec2.MOVES[i]
-        except KeyError:
-            print(f"{i} is not a valid direction")
+    for direction, delta in vec2.MOVES.items():
         new_pos = coord + delta
-
         new_pos.mod(gmap.width, gmap.height)
-        neighbors.append((new_pos, i))
+
+        if unit_dict is not None and new_pos in unit_dict.by_pos:
+            other_unit = unit_dict.by_pos[new_pos]
+            if other_unit.faction_id == faction_id:
+                continue
+
+        neighbors.append((new_pos, direction))
     return neighbors
 
 
@@ -46,12 +46,24 @@ def reconstruct_path(
     while current[0] != start:
         path.append(current)
         current = came_from[current[0]]
-    path.reverse()
+
+    for i in path:
+        print(i[0], i[1])
+    print("Start:", start)
+    print("Goal:", goal)
+    # exit()
+
     return path
 
 
 # Basic A* algorithm
-def a_star(start: vec2.Vec2, goal: vec2.Vec2, gmap: game_map.GameMap):
+def a_star(
+    start: vec2.Vec2,
+    goal: vec2.Vec2,
+    gmap: game_map.GameMap,
+    unit_dict: dict,
+    faction_id: str,
+):
     frontier = PriorityQueue()
     frontier.put((0, (start, None)))
 
@@ -67,7 +79,12 @@ def a_star(start: vec2.Vec2, goal: vec2.Vec2, gmap: game_map.GameMap):
         if current[0] == goal:
             break
 
-        for next in get_neighbors(gmap, current[0]):
+        for next in get_neighbors(gmap, current[0], unit_dict, faction_id):
+
+            if unit_dict is not None and next[0] in unit_dict.by_pos:
+                other_unit = unit_dict.by_pos[next[0]]
+                if other_unit.faction_id == faction_id and next[0] != goal:
+                    continue
 
             new_cost = (
                 cost_so_far[current[0]] + gmap.cells[next[0]].get_terrain_penalty()
@@ -136,13 +153,13 @@ def influence_cities(
                                 )
 
                                 if (
-                                    len(gmap.objectives["Red"]) == 0
+                                    len(gmap.highest["Red"]) == 0
                                     or gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[
                                         0
                                     ][0]
-                                    > gmap.objectives["Red"][0]
+                                    > gmap.highest["Red"][0]
                                 ):
-                                    gmap.objectives["Red"] = [
+                                    gmap.highest["Red"] = [
                                         gmap.cells[
                                             vec2.Vec2(tile_x, tile_y)
                                         ].influences[0][0],
@@ -166,13 +183,13 @@ def influence_cities(
                                 )
 
                                 if (
-                                    len(gmap.objectives["Blue"]) == 0
+                                    len(gmap.highest["Blue"]) == 0
                                     or gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[
                                         0
                                     ][1]
-                                    > gmap.objectives["Blue"][0]
+                                    > gmap.highest["Blue"][0]
                                 ):
-                                    gmap.objectives["Blue"] = [
+                                    gmap.highest["Blue"] = [
                                         gmap.cells[
                                             vec2.Vec2(tile_x, tile_y)
                                         ].influences[0][1],

@@ -68,3 +68,38 @@ class Unit:
             return random.randint(0, 20)
         else:
             return random.randint(0, 10)
+
+
+# ###########################################################
+# THE UNIT DICTIONARY
+# Modify at your own risk. Probably no need.
+# ###########################################################
+class UnitDict:
+    def __init__(self, faction_ids):
+        self.by_pos = {}
+        self.by_faction = {}
+        for fid in faction_ids:
+            self.by_faction[fid] = []
+
+    def add_unit_by_pos(self, u, pos):
+        if pos not in self.by_pos:
+            self.by_pos[pos] = u
+
+    def remove_unit_by_pos(self, u, pos):
+        if u == self.by_pos[pos]:
+            del self.by_pos[pos]
+
+    def move_unit(self, u, old_pos, new_pos):
+        self.remove_unit_by_pos(u, old_pos)
+        self.add_unit_by_pos(u, new_pos)
+
+    def add_unit(self, u):
+        self.by_faction[u.faction_id].append(u)
+        self.add_unit_by_pos(u, u.pos)
+
+    def remove_unit(self, u):
+        self.by_faction[u.faction_id].remove(u)
+        self.remove_unit_by_pos(u, u.pos)
+
+    def is_pos_free(self, pos):
+        return pos not in self.by_pos
