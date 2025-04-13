@@ -14,11 +14,6 @@ class GameMap:
         self.width = width
         self.cells = {}
         self.highest = {"Red": [], "Blue": []}
-        # for x in range(width):
-        #     for y in range(height):
-        #         self.cells[vec2.Vec2(x, y)] = cell.Cell(
-        #             params.get_random_terrain(random.random())
-        #         )
 
         for y in range(height):
             if y % 2 == 0:
@@ -31,9 +26,6 @@ class GameMap:
                     self.cells[vec2.Vec2(x, y)] = cell.Cell(
                         params.get_random_terrain(random.random())
                     )
-                # self.cells[vec2.Vec2(x, y)] = cell.Cell(
-                #     params.get_random_terrain(random.random()))
 
     def get_cell(self, pos):
-        # print(pos)
         return self.cells[pos]

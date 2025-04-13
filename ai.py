@@ -66,11 +66,6 @@ class AI:
     # implement them in the engine (main.py).
 
     def run_ai(self, faction_id, factions, cities, units, gmap, unit_dict):
-        # A list to hold our commands. This gets returned by
-        # the function.
-        # for i in gmap.highest:
-        #     for j in gmap.highest[i]:
-        #         print(f"{i} {j}")
         cmds = []
 
         if faction_id == "Red":
@@ -79,6 +74,7 @@ class AI:
         else:
             positions = [x[1] for x in gmap.highest["Red"] if x[0] > 5]
             weights = [x[0] for x in gmap.highest["Red"] if x[0] > 5]
+
         # Overview: randomly select a city we own and randomly
         # select a unit type (utype). Create a BuildUnitCommand
         # This is done every turn knowing most will fail because
@@ -91,10 +87,6 @@ class AI:
                 faction_id, my_cities[ci].ID, random.choice(["R", "S", "P"])
             )
             cmds.append(cmd)
-
-        # Overview: issue a move to every unit giving a random
-        # direction. Directions can be found in the vec2.py file.
-        # They are single char strings: 'N', 'E', 'W', 'S'.
 
         my_units = units[faction_id]
         for u in my_units:
@@ -115,8 +107,6 @@ class AI:
 
             if len(u.queue) == 0:
 
-                # print(positions)
-                # print(weights)
                 chosen_tile = random.choices(positions, weights=weights, k=1)[0]
 
                 came_from, cost_so_far = a_star(

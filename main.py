@@ -69,15 +69,6 @@ class Display:
             terrain_images[terrain] = image
 
         for v, c in gmap.cells.items():
-            # pygame.draw.rect(
-            #     self.screen,
-            #     c.get_color(),
-            #     pygame.rect.Rect(
-            #         v.x*self.map_cell_size,
-            #         v.y*self.map_cell_size,
-            #         self.map_cell_size,
-            #         self.map_cell_size),
-            #     width=0)
             points = []
             rect = terrain_images[c.terrain.name].get_rect()
             rect = rect.move(v.x*self.map_cell_size*math.sqrt(3)/2 ,v.y*cell_y*.75)
@@ -101,17 +92,6 @@ class Display:
                 points.append(self.pointy_hex_corner( (x_coord,y_coord),side_size, i))
 
             draw_polygon(self.screen,points, f.color)
-            # pygame.draw.rect(
-            #     self.screen,
-            #     f.color,
-            #     pygame.rect.Rect(
-            #         c.pos.x*self.map_cell_size*.5,
-            #         c.pos.y*self.map_cell_size*.75,
-            #         self.map_cell_size,
-            #         self.map_cell_size
-            #     ),
-            #     width=2
-            # )
             if args.verbose:
                 self.draw_text(
                         f"({c.pos.x},{c.pos.y})",
@@ -219,7 +199,6 @@ def gen_cities(gmap, faction_ids):
 
     for i in range(params.CITIES_PER_FACTION * len(faction_ids)):
 
-        # A new red city
         new_city_pos = None
         while True:
             new_city_y = random.randrange(gmap.height)
@@ -333,10 +312,6 @@ def RunMoveCommand(cmd, factions, unit_dict, cities, gmap, move_list):
     if theunit is None:
         return
 
-    # Get new position
-    # print(
-    #     f"current objective: {gmap.highest["Red"][0]},{gmap.highest["Red"][1]}, {gmap.highest["Blue"][0]},{gmap.highest["Blue"][1]}"
-    # )
     delta = vec2.Vec2(0, 0)
     try:
         delta = vec2.MOVES[cmd.direction]
@@ -467,26 +442,6 @@ def CheckForGameOver(cities):
         if c.faction_id not in faction_ids_with_cities:
             faction_ids_with_cities.append(c.faction_id)
     return len(faction_ids_with_cities) == 1, faction_ids_with_cities[0]
-
-
-# def ScaleUI(display, map_width, map_height):
-#     window_width, window_height = pygame.display.get_window_size()
-#     x = window_width / ((map_width + 0.5) * display.map_cell_size)
-#     y = window_height / (
-#         (display.map_cell_size * map_height)
-#         - 2 * ((1 / 8) * display.map_cell_size)
-#         - ((1 / 4) * display.map_cell_size * (map_height - 2))
-#     )
-#     display.scaling_factor = pygame.Vector2(
-#         x,
-#         y,
-#     )
-#     if args.verbose:
-#         print(f"Window size: {window_width}x{window_height}")
-#         print(f"x: {x}")
-#         print(f"y: {y}")
-
-#         print(f"Scaling factor: {display.scaling_factor}")
 
 
 # ###########################################################3
@@ -663,8 +618,6 @@ def GameLoop(display):
             if args.verbose:
                 display.draw_influence(gmap)
             pygame.display.flip()
-        # for g in gmap.cells:
-        #     print("cell", g, gmap.cells[g].terrain.name, gmap.cells[g].influences)
 
 
 def main():

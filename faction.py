@@ -4,8 +4,6 @@
 # Or if you want to make the game's resources more complex.
 # Currently, there's only money.
 
-import unit
-
 
 class Faction:
     def __init__(self, ID, money, ai, color):

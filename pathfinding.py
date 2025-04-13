@@ -54,16 +54,9 @@ def reconstruct_path(
         path.append((current, direction))
         current = prev
 
-    # for i in path:
-    #     print(i[0], i[1])
-    # print("Start:", start)
-    # print("Goal:", goal)
-    # # exit()
-
     return path
 
 
-# Basic A* algorithm
 def a_star(
     start: vec2.Vec2,
     goal: vec2.Vec2,
@@ -281,7 +274,6 @@ def influenced_tiles_cities(
     start_inf: int,
     affected_dict: dict,
 ) -> dict:
-    # to prevent us from doing calculations on excessive amounts of tiles, I plan on iterating over units rather than the entire world
     for u in units:
         affected_dict = influence_cities(
             u.pos, u.faction_id, gmap, start_inf, decay, affected_dict
@@ -296,7 +288,6 @@ def influenced_tiles_units(
     start_inf: int,
     affected_dict: dict,
 ) -> dict:
-    # to prevent us from doing calculations on excessive amounts of tiles, I plan on iterating over units rather than the entire world
     for u in units:
         affected_dict = influence_units(
             units[u].pos,
