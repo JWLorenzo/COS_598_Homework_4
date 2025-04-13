@@ -334,9 +334,9 @@ def RunMoveCommand(cmd, factions, unit_dict, cities, gmap, move_list):
         return
 
     # Get new position
-    print(
-        f"current objective: {gmap.highest["Red"][0]},{gmap.highest["Red"][1]}, {gmap.highest["Blue"][0]},{gmap.highest["Blue"][1]}"
-    )
+    # print(
+    #     f"current objective: {gmap.highest["Red"][0]},{gmap.highest["Red"][1]}, {gmap.highest["Blue"][0]},{gmap.highest["Blue"][1]}"
+    # )
     delta = vec2.Vec2(0, 0)
     try:
         delta = vec2.MOVES[cmd.direction]
@@ -645,15 +645,13 @@ def GameLoop(display):
             affected_dict = influenced_tiles_cities(
                 gmap,
                 cities,
-                radius=2,
                 decay=1,
-                start_inf=5,
+                start_inf=7,
                 affected_dict=affected_dict,
             )
             affected_dict = influenced_tiles_units(
                 gmap,
                 unit_dict.by_pos,
-                radius=2,
                 decay=1,
                 start_inf=5,
                 affected_dict=affected_dict,

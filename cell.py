@@ -11,6 +11,7 @@
 
 
 import cell_terrain
+import math
 
 
 class Cell:
@@ -74,7 +75,7 @@ class Cell:
             case cell_terrain.Terrain.Hill:
                 return 3
             case cell_terrain.Terrain.Mountain:
-                return 5
+                return math.inf
             case cell_terrain.Terrain.Pasture:
                 return 2
 

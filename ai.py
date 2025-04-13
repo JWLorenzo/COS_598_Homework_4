@@ -68,8 +68,17 @@ class AI:
     def run_ai(self, faction_id, factions, cities, units, gmap, unit_dict):
         # A list to hold our commands. This gets returned by
         # the function.
+        # for i in gmap.highest:
+        #     for j in gmap.highest[i]:
+        #         print(f"{i} {j}")
         cmds = []
 
+        if faction_id == "Red":
+            positions = [x[1] for x in gmap.highest["Blue"] if x[0] > 5]
+            weights = [x[0] for x in gmap.highest["Blue"] if x[0] > 5]
+        else:
+            positions = [x[1] for x in gmap.highest["Red"] if x[0] > 5]
+            weights = [x[0] for x in gmap.highest["Red"] if x[0] > 5]
         # Overview: randomly select a city we own and randomly
         # select a unit type (utype). Create a BuildUnitCommand
         # This is done every turn knowing most will fail because
@@ -105,16 +114,15 @@ class AI:
                     continue
 
             if len(u.queue) == 0:
-                target = (
-                    gmap.highest["Red"][1]
-                    if faction_id == "Blue"
-                    else gmap.highest["Blue"][1]
+
+                # print(positions)
+                # print(weights)
+                chosen_tile = random.choices(positions, weights=weights, k=1)[0]
+
+                came_from, cost_so_far = a_star(
+                    u.pos, chosen_tile, gmap, unit_dict, u.faction_id
                 )
-                if target:
-                    came_from, cost_so_far = a_star(
-                        u.pos, target, gmap, unit_dict, u.faction_id
-                    )
-                    u.queue = reconstruct_path(came_from, u.pos, target)
+                u.queue = reconstruct_path(came_from, u.pos, chosen_tile)
             if len(u.queue) > 0:
                 move_dir = u.queue[-1][1]
             else:

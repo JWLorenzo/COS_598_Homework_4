@@ -1,5 +1,5 @@
 import vec2
-from queue import PriorityQueue
+import heapq
 from typing import Optional
 import game_map
 from params import *
@@ -8,6 +8,12 @@ from params import *
 def doublewidth_distance_vt(a: vec2.Vec2, b: tuple) -> int:
     dcol = abs(a.x - b[0])
     drow = abs(a.y - b[1])
+    return drow + max(0, (dcol - drow) / 2)
+
+
+def doublewidth_distance_tp(a: tuple, b: tuple) -> int:
+    dcol = abs(a[0] - b[0])
+    drow = abs(a[1] - b[1])
     return drow + max(0, (dcol - drow) / 2)
 
 
@@ -39,19 +45,20 @@ def get_neighbors(gmap, coord, unit_dict, faction_id):
 def reconstruct_path(
     came_from: dict[vec2.Vec2, str, vec2.Vec2], start: vec2.Vec2, goal: vec2.Vec2
 ):
-    current: list[vec2.Vec2, str] = [goal, None]
-    path: list[vec2.Vec2] = []
+    current = goal
+    path = []
     if goal not in came_from:
         return []
-    while current[0] != start:
-        path.append(current)
-        current = came_from[current[0]]
+    while current != start:
+        prev, direction = came_from[current]
+        path.append((current, direction))
+        current = prev
 
-    for i in path:
-        print(i[0], i[1])
-    print("Start:", start)
-    print("Goal:", goal)
-    # exit()
+    # for i in path:
+    #     print(i[0], i[1])
+    # print("Start:", start)
+    # print("Goal:", goal)
+    # # exit()
 
     return path
 
@@ -64,8 +71,8 @@ def a_star(
     unit_dict: dict,
     faction_id: str,
 ):
-    frontier = PriorityQueue()
-    frontier.put((0, (start, None)))
+    frontier = []
+    heapq.heappush(frontier, (0, (start, None)))
 
     came_from: dict[vec2.Vec2, str, Optional[vec2.Vec2]] = {}
     cost_so_far: dict[vec2.Vec2, float] = {}
@@ -73,29 +80,30 @@ def a_star(
     came_from[start] = None
     cost_so_far[start] = 0
 
-    while not frontier.empty():
-        _, current = frontier.get()
+    while frontier:
+        priority, current = heapq.heappop(frontier)
 
         if current[0] == goal:
             break
 
-        for next in get_neighbors(gmap, current[0], unit_dict, faction_id):
+        for next_pos, direction in get_neighbors(
+            gmap, current[0], unit_dict, faction_id
+        ):
 
-            if unit_dict is not None and next[0] in unit_dict.by_pos:
-                other_unit = unit_dict.by_pos[next[0]]
-                if other_unit.faction_id == faction_id and next[0] != goal:
+            if unit_dict is not None and next_pos in unit_dict.by_pos:
+                other_unit = unit_dict.by_pos[next_pos]
+                if other_unit.faction_id == faction_id and next_pos != goal:
                     continue
 
             new_cost = (
-                cost_so_far[current[0]] + gmap.cells[next[0]].get_terrain_penalty()
+                cost_so_far[current[0]] + gmap.cells[next_pos].get_terrain_penalty()
             )
 
-            if next[0] not in cost_so_far or new_cost < cost_so_far[next[0]]:
-                cost_so_far[next[0]] = new_cost
-                priority = new_cost + heuristic(next[0], goal)
-
-                frontier.put((priority, (next[0], next[1])))
-                came_from[next[0]] = (current[0], next[1])
+            if next_pos not in cost_so_far or new_cost < cost_so_far[next_pos]:
+                cost_so_far[next_pos] = new_cost
+                priority = new_cost + heuristic(next_pos, goal)
+                heapq.heappush(frontier, (priority, (next_pos, direction)))
+                came_from[next_pos] = (current[0], direction)
 
     return came_from, cost_so_far
 
@@ -113,191 +121,162 @@ def assign_influence(
     return gmap
 
 
+def precomputed_offsets(radius):
+    offsets = []
+    for dx in range(-radius, radius + 1):
+        for dy in range(-radius, radius + 1):
+            dist = doublewidth_distance_tp((0, 0), (dx, dy))
+            if dist <= radius:
+                offsets.append((dx, dy, dist))
+    return offsets
+
+
+OFFSETS_RADIUS_2 = precomputed_offsets(2)
+
+
 def influence_cities(
     center_coords: vec2.Vec2,
     faction_id: str,
-    radius: int,
     gmap: game_map.GameMap,
     start_inf: int,
     decay: int,
     affected_dict: dict,
 ) -> dict:
-    for dx in range(-radius, radius + 1):
-        for dy in range(-radius, radius + 1):
-            tile_y = center_coords.y + dy
+    for dx, dy, dist in OFFSETS_RADIUS_2:
+        tile_y = center_coords.y + dy
 
-            if 0 <= tile_y < MAP_HEIGHT:
-                tile_x = center_coords.x + dx * 2
+        if 0 <= tile_y < MAP_HEIGHT:
+            tile_x = center_coords.x + dx * 2
 
-                if tile_y % 2 == 1 and center_coords.y % 2 == 0:
-                    tile_x += 1
-                if tile_y % 2 == 0 and center_coords.y % 2 == 1:
-                    tile_x -= 1
-                if 0 <= tile_x < MAP_WIDTH * 2:
-                    dist = doublewidth_distance_vt(center_coords, (tile_x, tile_y))
-                    if dist <= radius:
-                        if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
-                            if faction_id == "Red":
-                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][
-                                    0
-                                ] += max(0, start_inf - dist * decay)
+            if tile_y % 2 == 1 and center_coords.y % 2 == 0:
+                tile_x += 1
+            if tile_y % 2 == 0 and center_coords.y % 2 == 1:
+                tile_x -= 1
+            if 0 <= tile_x < MAP_WIDTH * 2:
+                if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
+                    if faction_id == "Red":
+                        gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][0] += max(
+                            0, start_inf - dist * decay
+                        )
 
-                                gmap = assign_influence(
-                                    gmap,
-                                    vec2.Vec2(tile_x, tile_y),
-                                    0,
-                                    0,
-                                    start_inf,
-                                    dist,
-                                    decay,
-                                )
+                        gmap = assign_influence(
+                            gmap,
+                            vec2.Vec2(tile_x, tile_y),
+                            0,
+                            0,
+                            start_inf,
+                            dist,
+                            decay,
+                        )
+                        gmap.highest["Red"].append(
+                            [
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][0],
+                                vec2.Vec2(tile_x, tile_y),
+                            ]
+                        )
 
-                                if (
-                                    len(gmap.highest["Red"]) == 0
-                                    or gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[
-                                        0
-                                    ][0]
-                                    > gmap.highest["Red"][0]
-                                ):
-                                    gmap.highest["Red"] = [
-                                        gmap.cells[
-                                            vec2.Vec2(tile_x, tile_y)
-                                        ].influences[0][0],
-                                        vec2.Vec2(tile_x, tile_y),
-                                    ]
-
-                                if (
-                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
-                                    is None
-                                ):
-                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
-                            elif faction_id == "Blue":
-                                gmap = assign_influence(
-                                    gmap,
-                                    vec2.Vec2(tile_x, tile_y),
-                                    0,
-                                    1,
-                                    start_inf,
-                                    dist,
-                                    decay,
-                                )
-
-                                if (
-                                    len(gmap.highest["Blue"]) == 0
-                                    or gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[
-                                        0
-                                    ][1]
-                                    > gmap.highest["Blue"][0]
-                                ):
-                                    gmap.highest["Blue"] = [
-                                        gmap.cells[
-                                            vec2.Vec2(tile_x, tile_y)
-                                        ].influences[0][1],
-                                        vec2.Vec2(tile_x, tile_y),
-                                    ]
-
-                                if (
-                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
-                                    is None
-                                ):
-                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
-                        else:
-                            print(
-                                f"Tile ({tile_x}, {tile_y}) is out of bounds for the map."
-                            )
+                        if affected_dict.get(vec2.Vec2(tile_x, tile_y), None) is None:
+                            affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
+                    elif faction_id == "Blue":
+                        gmap = assign_influence(
+                            gmap,
+                            vec2.Vec2(tile_x, tile_y),
+                            0,
+                            1,
+                            start_inf,
+                            dist,
+                            decay,
+                        )
+                        gmap.highest["Blue"].append(
+                            [
+                                gmap.cells[vec2.Vec2(tile_x, tile_y)].influences[0][1],
+                                vec2.Vec2(tile_x, tile_y),
+                            ]
+                        )
+                        if affected_dict.get(vec2.Vec2(tile_x, tile_y), None) is None:
+                            affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
+                else:
+                    print(f"Tile ({tile_x}, {tile_y}) is out of bounds for the map.")
     return affected_dict
 
 
 def influence_units(
     center_coords: vec2.Vec2,
     faction_id: str,
-    radius: int,
     gmap: game_map.GameMap,
     start_inf: int,
     decay: int,
     affected_dict: dict,
 ) -> dict:
-    for dx in range(-radius, radius + 1):
-        for dy in range(-radius, radius + 1):
-            tile_y = center_coords.y + dy
+    for dx, dy, dist in OFFSETS_RADIUS_2:
+        tile_y = center_coords.y + dy
 
-            if 0 <= tile_y < MAP_HEIGHT:
-                tile_x = center_coords.x + dx * 2
+        if 0 <= tile_y < MAP_HEIGHT:
+            tile_x = center_coords.x + dx * 2
 
-                if tile_y % 2 == 1 and center_coords.y % 2 == 0:
-                    tile_x += 1
-                if tile_y % 2 == 0 and center_coords.y % 2 == 1:
-                    tile_x -= 1
-                if 0 <= tile_x < MAP_WIDTH * 2:
-                    dist = doublewidth_distance_vt(center_coords, (tile_x, tile_y))
-                    if dist <= radius:
-                        if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
-                            if faction_id == "Red":
+            if tile_y % 2 == 1 and center_coords.y % 2 == 0:
+                tile_x += 1
+            if tile_y % 2 == 0 and center_coords.y % 2 == 1:
+                tile_x -= 1
+            if 0 <= tile_x < MAP_WIDTH * 2:
+                if gmap.cells.get(vec2.Vec2(tile_x, tile_y)) is not None:
+                    if faction_id == "Red":
 
-                                gmap = assign_influence(
-                                    gmap,
-                                    vec2.Vec2(tile_x, tile_y),
-                                    1,
-                                    0,
-                                    start_inf,
-                                    dist,
-                                    decay,
-                                )
+                        gmap = assign_influence(
+                            gmap,
+                            vec2.Vec2(tile_x, tile_y),
+                            1,
+                            0,
+                            start_inf,
+                            dist,
+                            decay,
+                        )
 
-                                gmap = assign_influence(
-                                    gmap,
-                                    vec2.Vec2(tile_x, tile_y),
-                                    2,
-                                    0,
-                                    start_inf,
-                                    dist,
-                                    decay,
-                                )
+                        gmap = assign_influence(
+                            gmap,
+                            vec2.Vec2(tile_x, tile_y),
+                            2,
+                            0,
+                            start_inf,
+                            dist,
+                            decay,
+                        )
 
-                                if (
-                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
-                                    is None
-                                ):
-                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
+                        if affected_dict.get(vec2.Vec2(tile_x, tile_y), None) is None:
+                            affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
 
-                            elif faction_id == "Blue":
+                    elif faction_id == "Blue":
 
-                                gmap = assign_influence(
-                                    gmap,
-                                    vec2.Vec2(tile_x, tile_y),
-                                    1,
-                                    1,
-                                    start_inf,
-                                    dist,
-                                    decay,
-                                )
+                        gmap = assign_influence(
+                            gmap,
+                            vec2.Vec2(tile_x, tile_y),
+                            1,
+                            1,
+                            start_inf,
+                            dist,
+                            decay,
+                        )
 
-                                gmap = assign_influence(
-                                    gmap,
-                                    vec2.Vec2(tile_x, tile_y),
-                                    2,
-                                    1,
-                                    start_inf,
-                                    dist,
-                                    decay,
-                                )
+                        gmap = assign_influence(
+                            gmap,
+                            vec2.Vec2(tile_x, tile_y),
+                            2,
+                            1,
+                            start_inf,
+                            dist,
+                            decay,
+                        )
 
-                                if (
-                                    affected_dict.get(vec2.Vec2(tile_x, tile_y), None)
-                                    is None
-                                ):
-                                    affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
-                        else:
-                            print(
-                                f"Tile ({tile_x}, {tile_y}) is out of bounds for the map."
-                            )
+                        if affected_dict.get(vec2.Vec2(tile_x, tile_y), None) is None:
+                            affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
+                else:
+                    print(f"Tile ({tile_x}, {tile_y}) is out of bounds for the map.")
     return affected_dict
 
 
 def influenced_tiles_cities(
     gmap: game_map.GameMap,
     units: list,
-    radius: int,
     decay: int,
     start_inf: int,
     affected_dict: dict,
@@ -305,7 +284,7 @@ def influenced_tiles_cities(
     # to prevent us from doing calculations on excessive amounts of tiles, I plan on iterating over units rather than the entire world
     for u in units:
         affected_dict = influence_cities(
-            u.pos, u.faction_id, radius, gmap, start_inf, decay, affected_dict
+            u.pos, u.faction_id, gmap, start_inf, decay, affected_dict
         )
     return affected_dict
 
@@ -313,7 +292,6 @@ def influenced_tiles_cities(
 def influenced_tiles_units(
     gmap: game_map.GameMap,
     units: list,
-    radius: int,
     decay: int,
     start_inf: int,
     affected_dict: dict,
@@ -323,7 +301,6 @@ def influenced_tiles_units(
         affected_dict = influence_units(
             units[u].pos,
             units[u].faction_id,
-            radius,
             gmap,
             start_inf,
             decay,
