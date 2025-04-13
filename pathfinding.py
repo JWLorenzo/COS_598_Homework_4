@@ -27,19 +27,24 @@ def heuristic(start, goal):
     return doublewidth_distance(start, goal)
 
 
-def get_neighbors(gmap, coord, unit_dict, faction_id):
+def get_neighbors(gmap, coord):
     neighbors = []
     for direction, delta in vec2.MOVES.items():
         new_pos = coord + delta
         new_pos.mod(gmap.width, gmap.height)
 
-        if unit_dict is not None and new_pos in unit_dict.by_pos:
-            other_unit = unit_dict.by_pos[new_pos]
-            if other_unit.faction_id == faction_id:
-                continue
-
         neighbors.append((new_pos, direction))
     return neighbors
+
+
+def precomputed_neighbors(gmap):
+    precomputed_neighbors = {}
+    for cell in gmap.cells:
+        precomputed_neighbors[cell] = get_neighbors(gmap, cell)
+    return precomputed_neighbors
+
+
+CELL_NEIGHBORS = precomputed_neighbors(game_map.GameMap(MAP_WIDTH, MAP_HEIGHT))
 
 
 def reconstruct_path(
@@ -57,6 +62,9 @@ def reconstruct_path(
     return path
 
 
+path_hash_cache = {}
+
+
 def a_star(
     start: vec2.Vec2,
     goal: vec2.Vec2,
@@ -64,6 +72,9 @@ def a_star(
     unit_dict: dict,
     faction_id: str,
 ):
+    cache_key = (start, goal)
+    if path_hash_cache.get(cache_key) is not None:
+        return path_hash_cache[cache_key]
     frontier = []
     heapq.heappush(frontier, (0, (start, None)))
 
@@ -79,18 +90,14 @@ def a_star(
         if current[0] == goal:
             break
 
-        for next_pos, direction in get_neighbors(
-            gmap, current[0], unit_dict, faction_id
-        ):
+        for next_pos, direction in CELL_NEIGHBORS[current[0]]:
 
             if unit_dict is not None and next_pos in unit_dict.by_pos:
                 other_unit = unit_dict.by_pos[next_pos]
                 if other_unit.faction_id == faction_id and next_pos != goal:
                     continue
 
-            new_cost = (
-                cost_so_far[current[0]] + gmap.cells[next_pos].get_terrain_penalty()
-            )
+            new_cost = cost_so_far[current[0]] + gmap.get_cell(next_pos).cost
 
             if next_pos not in cost_so_far or new_cost < cost_so_far[next_pos]:
                 cost_so_far[next_pos] = new_cost
@@ -98,6 +105,7 @@ def a_star(
                 heapq.heappush(frontier, (priority, (next_pos, direction)))
                 came_from[next_pos] = (current[0], direction)
 
+    path_hash_cache[cache_key] = (came_from, cost_so_far)
     return came_from, cost_so_far
 
 

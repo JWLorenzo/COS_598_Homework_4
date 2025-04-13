@@ -18,6 +18,7 @@ class Cell:
     def __init__(self, terrain):
         self.terrain = terrain
         self.influences = [[0, 0], [0, 0], [0, 0]]
+        self.cost = 0
 
     def get_color(self):
         match self.terrain:

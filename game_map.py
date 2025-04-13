@@ -21,11 +21,17 @@ class GameMap:
                     self.cells[vec2.Vec2(x, y)] = cell.Cell(
                         params.get_random_terrain(random.random())
                     )
+                    self.cells[vec2.Vec2(x, y)].cost = self.get_cell(
+                        vec2.Vec2(x, y)
+                    ).get_terrain_penalty()
             else:
                 for x in range(1, width * 2, 2):
                     self.cells[vec2.Vec2(x, y)] = cell.Cell(
                         params.get_random_terrain(random.random())
                     )
+                    self.cells[vec2.Vec2(x, y)].cost = self.get_cell(
+                        vec2.Vec2(x, y)
+                    ).get_terrain_penalty()
 
     def get_cell(self, pos):
         return self.cells[pos]

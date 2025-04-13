@@ -52,3 +52,9 @@ Defense:
 - I got the images from here: https://github.com/BryantCabrera/Settlers-of-Catan
 
 - To calculate influence, I based my algorithm off their algorithm for distance calculations for a double width tile format and then modified it to iterate over ranges. I used a double width coordinate system because it seemed like it would be the easies to implement when translating from a grid-based to hex-based. 
+
+- Pathfinding is expensive, to offset the costs, I started to cache paths used before which should ideally reduce the number of necessary A* calculations. 
+
+- Additionally, I cached the terrain costs
+
+- Additionally, we precalculated the offsets for neighbors in radius

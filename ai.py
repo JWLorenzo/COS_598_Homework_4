@@ -70,15 +70,40 @@ class AI:
 
         if faction_id == "Red":
             positions = [x[1] for x in gmap.highest["Blue"] if x[0] > 5]
-            weights = [x[0] for x in gmap.highest["Blue"] if x[0] > 5]
+            weights = [
+                x[0] ** 2
+                + (
+                    gmap.get_cell(x[1]).get_attack_mod()
+                    + gmap.get_cell(x[1]).get_defense_mod()
+                )
+                + (
+                    gmap.get_cell(x[1]).influences[1][0]
+                    + gmap.get_cell(x[1]).influences[2][0]
+                )
+                for x in gmap.highest["Blue"]
+                if x[0] > 5
+            ]
         else:
             positions = [x[1] for x in gmap.highest["Red"] if x[0] > 5]
-            weights = [x[0] for x in gmap.highest["Red"] if x[0] > 5]
+            weights = [
+                x[0] ** 2
+                + (
+                    gmap.get_cell(x[1]).get_attack_mod()
+                    + gmap.get_cell(x[1]).get_defense_mod()
+                )
+                + (
+                    gmap.get_cell(x[1]).influences[1][1]
+                    + gmap.get_cell(x[1]).influences[2][1]
+                )
+                for x in gmap.highest["Red"]
+                if x[0] > 5
+            ]
 
         # Overview: randomly select a city we own and randomly
         # select a unit type (utype). Create a BuildUnitCommand
         # This is done every turn knowing most will fail because
         # the faction does not have enough money to build them.
+
         my_cities = cities[faction_id]
         city_indexes = list(range(len(my_cities)))
         random.shuffle(city_indexes)
@@ -87,6 +112,8 @@ class AI:
                 faction_id, my_cities[ci].ID, random.choice(["R", "S", "P"])
             )
             cmds.append(cmd)
+
+        # Pathfinding for units
 
         my_units = units[faction_id]
         for u in my_units:
