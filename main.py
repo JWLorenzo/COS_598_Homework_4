@@ -509,6 +509,15 @@ def GameLoop(display):
                 cities_by_faction = {}
                 for fid, f in factions.items():
                     faction_cities = FactionPreTurn(cities, f)
+                    f.money = max(
+                        0,
+                        f.money
+                        - (
+                            gmap.economy[fid]["R"]
+                            + gmap.economy[fid]["P"]
+                            + gmap.economy[fid]["S"]
+                        ),
+                    )
                     cities_by_faction[fid] = faction_cities
 
                 commands = Turn(factions, gmap, cities_by_faction, unit_dict)

@@ -71,7 +71,7 @@ class AI:
         if faction_id == "Red":
             positions = [x[1] for x in gmap.highest["Blue"] if x[0] > 5]
             weights = [
-                x[0] ** 2
+                x[0] ** 3
                 + (
                     gmap.get_cell(x[1]).get_attack_mod()
                     + gmap.get_cell(x[1]).get_defense_mod()
@@ -86,7 +86,7 @@ class AI:
         else:
             positions = [x[1] for x in gmap.highest["Red"] if x[0] > 5]
             weights = [
-                x[0] ** 2
+                x[0] ** 3
                 + (
                     gmap.get_cell(x[1]).get_attack_mod()
                     + gmap.get_cell(x[1]).get_defense_mod()
