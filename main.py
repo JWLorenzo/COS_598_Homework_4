@@ -386,7 +386,7 @@ def RunBuildCommand(cmd, factions, unit_dict, cities, gmap):
                         0,
                     )
                     unit_dict.add_unit(new_unit)
-
+                    gmap.economy[cmd.faction_id][cmd.utype] += 1
                     f.money -= cost
 
 
@@ -427,10 +427,12 @@ def RunCombat(attacker, defender, cmd, factions, unit_dict, cities, gmap):
     if defender.health <= 0:
         # print(f"   {defender.faction_id} died")
         unit_dict.remove_unit(defender)
+        gmap.economy[defender.faction_id][defender.utype] -= 1
         can_move = True
     if attacker.health <= 0:
         # print(f"   {attacker.faction_id} died")
         unit_dict.remove_unit(attacker)
+        gmap.economy[attacker.faction_id][attacker.utype] -= 1
         can_move = False
 
     return can_move
@@ -527,7 +529,8 @@ def GameLoop(display):
 
             text_turn, _ = display.font.render(f"TURN {turn}", "black")
             text_faction, _ = display.font.render(
-                f"{'Fctn':<5} {'Ci':>2} {'Un':>3} {'Mo':>4}", "black"
+                f"{'Fctn':<5} {'Ci':>2} {'Un':>3} {'Mo':>4} {"R":>2} {"S":>2} {"P":>2}",
+                "black",
             )
             y = 30
             text_city = []
@@ -540,7 +543,7 @@ def GameLoop(display):
                         num_cities += 1
 
                 text_to_append = display.font.render(
-                    f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4}",
+                    f"{fid:<5} {num_cities:>2} {len(unit_dict.by_faction[fid]):>3} {f.money:>4},{gmap.economy[fid]["R"]:>2},{gmap.economy[fid]["S"]:>2},{gmap.economy[fid]["P"]:>2}",
                     "black",
                 )[0]
                 if text_to_append.get_width() > greatest_width:

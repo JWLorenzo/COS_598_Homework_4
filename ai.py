@@ -107,10 +107,22 @@ class AI:
         my_cities = cities[faction_id]
         city_indexes = list(range(len(my_cities)))
         random.shuffle(city_indexes)
+        if faction_id == "Red":
+            unit_weights = [
+                gmap.economy["Blue"]["S"] + 1,
+                gmap.economy["Blue"]["P"] + 1,
+                gmap.economy["Blue"]["R"] + 1,
+            ]
+        else:
+            unit_weights = [
+                gmap.economy["Red"]["S"] + 1,
+                gmap.economy["Red"]["P"] + 1,
+                gmap.economy["Red"]["R"] + 1,
+            ]
         for ci in city_indexes:
-            cmd = BuildUnitCommand(
-                faction_id, my_cities[ci].ID, random.choice(["R", "S", "P"])
-            )
+
+            unit_choice = random.choices(["R", "S", "P"], weights=unit_weights, k=1)[0]
+            cmd = BuildUnitCommand(faction_id, my_cities[ci].ID, unit_choice)
             cmds.append(cmd)
 
         # Pathfinding for units

@@ -14,6 +14,10 @@ class GameMap:
         self.width = width
         self.cells = {}
         self.highest = {"Red": [], "Blue": []}
+        self.economy = {
+            "Red": {"R": 0, "S": 0, "P": 0},
+            "Blue": {"R": 0, "S": 0, "P": 0},
+        }
 
         for y in range(height):
             if y % 2 == 0:
