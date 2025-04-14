@@ -529,8 +529,6 @@ def GameLoop(display):
                     print(f"Winning faction: {game_over[1]}")
                     display.run = False
 
-            # display.draw_map(gmap, background)
-
             # ###########################################3
             # RIGHT_SIDE UI
 
@@ -608,19 +606,21 @@ def GameLoop(display):
                     [0, 0],
                     [0, 0],
                 ]
+            gmap.highest = {"Red": [], "Blue": []}
+
             affected_dict.clear()
-            affected_dict = influenced_tiles_cities(
-                gmap,
-                cities,
-                decay=1,
-                start_inf=7,
-                affected_dict=affected_dict,
-            )
             affected_dict = influenced_tiles_units(
                 gmap,
                 unit_dict.by_pos,
                 decay=1,
                 start_inf=5,
+                affected_dict=affected_dict,
+            )
+            affected_dict = influenced_tiles_cities(
+                gmap,
+                cities,
+                decay=1,
+                start_inf=7,
                 affected_dict=affected_dict,
             )
             display.screen.blit(background, (0, 0))

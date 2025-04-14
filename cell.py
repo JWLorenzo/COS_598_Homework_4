@@ -17,6 +17,7 @@ import math
 class Cell:
     def __init__(self, terrain):
         self.terrain = terrain
+        # influence, offense, defense
         self.influences = [[0, 0], [0, 0], [0, 0]]
         self.cost = 0
 
@@ -76,7 +77,7 @@ class Cell:
             case cell_terrain.Terrain.Hill:
                 return 3
             case cell_terrain.Terrain.Mountain:
-                return math.inf
+                return 6
             case cell_terrain.Terrain.Pasture:
                 return 2
 

@@ -18,7 +18,7 @@ class GameMap:
             "Red": {"R": 0, "S": 0, "P": 0},
             "Blue": {"R": 0, "S": 0, "P": 0},
         }
-
+        self.threats = {"Red": [], "Blue": []}
         for y in range(height):
             if y % 2 == 0:
                 for x in range(0, width * 2, 2):

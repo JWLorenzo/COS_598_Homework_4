@@ -1,60 +1,50 @@
 # COS_598_Homework_4
 
-# Notes:
+- Name: Jacob Lorenzo
+- Date: 4/11/25
+- Assignment: COS_598_Homework_4
+- Instructor: Dr. Hutchinson
 
-- Towers generate units based on surrounding units
+# General Overview
 
-- Evaluation of movement "worthness" based on distance to a given unit and the distance to a given tower.
+The AI I’ve developed coordinates offensive and defensive unit movement, builds units in response to enemy composition, and uses a terrain-weighted A* pathfinding algorithm enhanced with influence-based goal weighting. The AI is shared by both factions, and the core logic for movement and production is contained within ai.py.
 
-- Economy? 
-    - The more of a unit that exists, the cheaper they are
+# Use of Terrain
 
-- Ideas: 
+Terrain affects multiple aspects of gameplay. Each tile’s terrain type provides attack and defense modifiers, influencing combat outcomes. These same tiles also impose movement penalties, which factor into A* pathfinding costs. In practice, this causes units to avoid high-cost terrain like mountains and favors more strategic navigation through the map.
 
-    - Builders
-        - Roadmakers that create optimal paths from a given place to another place so towers can manuever terrain with ease.
-    - Medics
-        - Heal other units
-    - Mages
-        - Grant other units flight so they can move on other unit tiles and ignore terrain 
+# Pathfinding and Movement
 
+To reduce overhead, I implemented A* with precomputed cell neighbors. In early tests, units formed tight “conga lines” due to overly deterministic targeting. To address this, I introduced stochasticity into goal selection by weighting tiles based on influence scores. These values decay outward from cities and units, encouraging a wider spread around objectives and resulting in more swarm-like movement.
 
-Simplistic plan of implementation:
+Influence values are cached to reduce redundant computation. Each unit maintains a movement queue that is recalculated only when necessary. If a path is blocked, the unit clears its queue and selects a new goal.
 
+# Target Identification and Threat Evaluation
 
-Three different categories of influence:
-- Victory
-    - Relative to the terrain, the cities will have a victory influence that will be the driving factor for offenses pathfinding.
-- Offense
-    - The evaluation of the influence of the units marked as offense. 
-- Defense
-    - The evaluation of the influence of the units marked as defense.
+Target selection is guided by a weighted tile list that incorporates influence scores, offensive/defensive values, and terrain bonuses. The game map tracks threat zones by faction, which the AI uses to prioritize movement. Units switch between offensive and defensive behavior depending on whether they are outnumbered. Defensive actions focus on threats near high-value areas such as cities.
 
-- Offense and Defense influence are affected by terrain bonuses that will buff / debuff certain actions. 
+# Unit Production
 
-We divvy up the units between two different categories:
+Unit builds are determined stochastically based on the enemy’s current composition. The opponent’s unit counts are used as inverse weights; if the Red faction has many Rock units, for example, the Blue faction is more likely to build Paper. This system allows the AI to dynamically counter the opposing side’s forces over time.
 
-Offense:
-- Evaluates the map for the current city with the greatest victory influence, then modifies that evaluation based on the defense influence.  
+# Performance Optimizations
+To reduce the computational cost of running A* for many units, I implemented several optimizations:
+- Pathfinding cache: Stores previously computed paths.
+- Precomputed neighbors: Avoids redundant neighbor lookups during pathfinding.
+- Unit upkeep system: Each unit reduces income by 1, helping cap unit counts and balance gameplay.
+These changes significantly improved performance during high unit-count scenarios. While some lag remains, it is substantially reduced. Future improvements could include multithreading to further boost performance.
 
-Defense:
-- Evaluates the current defense influence around cities and how far these cities are from the greatest offense influence. 
+# Game Optimizations
+As a personal challenge and inspired by my peers’ work, I transitioned the game to a hex-based map system. This required reworking offset logic, UI rendering, and display scaling for fullscreen mode. I also added new UI elements like unit counts and improved the legibility of unit visuals to support gameplay clarity.
 
-# Sources/Elaboration (mini-writeup?):
-- Since I'm using a hex-based system, I found a blog online about implementation of hex-based geometry in code. https://www.redblobgames.com/grids/hexagons/
+# Future Work
+Going forward, I’d like to explore a swarm-based model where one unit computes a path and nearby units follow it to reduce overall pathfinding overhead. I also see potential in using multithreading for influence propagation and pathfinding to improve frame stability.
 
-- I used this source because no doubt would this have been a waaay easier assignment if I decided to use grid based, but I saw the insanely cool work that Sophie(?) did with the isometric view and it inspired me to do something cool for this one as well. It also gave me a good opportunity to gain a greater understanding of pygame because I haven't actually used it all that much, so it was a learning experience into how to optimize calculations for video games because I noticed that the influence example you showed us in class got waaay slower when I tooled around with it by printing out each iteration. It progressively got slower, so I realized that iterating over every tile to calculate influence wasn't going to cut it. To optimize it, I decided to make an influence function that notes a given criteria.
+# Extra Credit
+I fully converted the game from a square grid to a hex-based system, requiring significant changes to movement logic, UI rendering, and game interaction. This overhaul supports a deeper level of strategy and visual clarity, and is used directly by the AI for movement and evaluation.
 
-- I also used this link because they had an implementation of A* and a path reconstructor. https://www.redblobgames.com/pathfinding/a-star/implementation.html#python-astar
-
-    - I presume using these / this source isn't problematic since they're just textbook algorithms we've used before. 
-
-- I got the images from here: https://github.com/BryantCabrera/Settlers-of-Catan
-
-- To calculate influence, I based my algorithm off their algorithm for distance calculations for a double width tile format and then modified it to iterate over ranges. I used a double width coordinate system because it seemed like it would be the easies to implement when translating from a grid-based to hex-based. 
-
-- Pathfinding is expensive, to offset the costs, I started to cache paths used before which should ideally reduce the number of necessary A* calculations. 
-
-- Additionally, I cached the terrain costs
-
-- Additionally, we precalculated the offsets for neighbors in radius
+# Sources:
+- https://www.redblobgames.com/grids/hexagons/
+- https://www.redblobgames.com/pathfinding/a-star/implementation.html#python-astar
+- https://www.redblobgames.com/grids/hexagons/#neighbors 
+- https://github.com/BryantCabrera/Settlers-of-Catan

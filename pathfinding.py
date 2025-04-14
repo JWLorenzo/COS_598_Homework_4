@@ -175,6 +175,19 @@ def influence_cities(
                                 vec2.Vec2(tile_x, tile_y),
                             ]
                         )
+                        offense = gmap.cells[vec2.Vec2(tile_x, tile_y)].get_influence(
+                            "Blue", 1
+                        )
+                        if offense > 0:
+                            gmap.threats["Blue"].append(
+                                [
+                                    vec2.Vec2(tile_x, tile_y),
+                                    offense
+                                    + gmap.cells[
+                                        vec2.Vec2(tile_x, tile_y)
+                                    ].get_attack_mod(),
+                                ]
+                            )
 
                         if affected_dict.get(vec2.Vec2(tile_x, tile_y), None) is None:
                             affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
@@ -194,6 +207,19 @@ def influence_cities(
                                 vec2.Vec2(tile_x, tile_y),
                             ]
                         )
+                        offense = gmap.cells[vec2.Vec2(tile_x, tile_y)].get_influence(
+                            "Red", 1
+                        )
+                        if offense > 0:
+                            gmap.threats["Red"].append(
+                                [
+                                    vec2.Vec2(tile_x, tile_y),
+                                    offense
+                                    + gmap.cells[
+                                        vec2.Vec2(tile_x, tile_y)
+                                    ].get_attack_mod(),
+                                ]
+                            )
                         if affected_dict.get(vec2.Vec2(tile_x, tile_y), None) is None:
                             affected_dict[vec2.Vec2(tile_x, tile_y)] = ""
                 else:

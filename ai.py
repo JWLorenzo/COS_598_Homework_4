@@ -67,11 +67,11 @@ class AI:
 
     def run_ai(self, faction_id, factions, cities, units, gmap, unit_dict):
         cmds = []
-
+        magic_number = 5
         if faction_id == "Red":
-            positions = [x[1] for x in gmap.highest["Blue"] if x[0] > 5]
+            positions = [x[1] for x in gmap.highest["Blue"] if x[0] > magic_number]
             weights = [
-                x[0] ** 3
+                x[0]
                 + (
                     gmap.get_cell(x[1]).get_attack_mod()
                     + gmap.get_cell(x[1]).get_defense_mod()
@@ -81,12 +81,25 @@ class AI:
                     + gmap.get_cell(x[1]).influences[2][0]
                 )
                 for x in gmap.highest["Blue"]
-                if x[0] > 5
+                if x[0] > magic_number
             ]
+            unit_weights = [
+                gmap.economy["Blue"]["S"] + 1,
+                gmap.economy["Blue"]["P"] + 1,
+                gmap.economy["Blue"]["R"] + 1,
+            ]
+            unit_counts = [
+                gmap.economy["Blue"]["S"],
+                gmap.economy["Blue"]["P"],
+                gmap.economy["Blue"]["R"],
+            ]
+            threat_list = [x[0] for x in gmap.threats["Blue"]]
+            threat_weights = [x[1] for x in gmap.threats["Blue"]]
+
         else:
-            positions = [x[1] for x in gmap.highest["Red"] if x[0] > 5]
+            positions = [x[1] for x in gmap.highest["Red"] if x[0] > magic_number]
             weights = [
-                x[0] ** 3
+                x[0]
                 + (
                     gmap.get_cell(x[1]).get_attack_mod()
                     + gmap.get_cell(x[1]).get_defense_mod()
@@ -96,29 +109,25 @@ class AI:
                     + gmap.get_cell(x[1]).influences[2][1]
                 )
                 for x in gmap.highest["Red"]
-                if x[0] > 5
+                if x[0] > magic_number
             ]
-
-        # Overview: randomly select a city we own and randomly
-        # select a unit type (utype). Create a BuildUnitCommand
-        # This is done every turn knowing most will fail because
-        # the faction does not have enough money to build them.
-
-        my_cities = cities[faction_id]
-        city_indexes = list(range(len(my_cities)))
-        random.shuffle(city_indexes)
-        if faction_id == "Red":
-            unit_weights = [
-                gmap.economy["Blue"]["S"] + 1,
-                gmap.economy["Blue"]["P"] + 1,
-                gmap.economy["Blue"]["R"] + 1,
-            ]
-        else:
             unit_weights = [
                 gmap.economy["Red"]["S"] + 1,
                 gmap.economy["Red"]["P"] + 1,
                 gmap.economy["Red"]["R"] + 1,
             ]
+            unit_counts = [
+                gmap.economy["Red"]["S"],
+                gmap.economy["Red"]["P"],
+                gmap.economy["Red"]["R"],
+            ]
+            threat_list = [x[0] for x in gmap.threats["Red"]]
+            threat_weights = [x[1] for x in gmap.threats["Red"]]
+        # Unit Builing
+
+        my_cities = cities[faction_id]
+        city_indexes = list(range(len(my_cities)))
+        random.shuffle(city_indexes)
         for ci in city_indexes:
 
             unit_choice = random.choices(["R", "S", "P"], weights=unit_weights, k=1)[0]
@@ -127,36 +136,64 @@ class AI:
 
         # Pathfinding for units
 
-        my_units = units[faction_id]
-        for u in my_units:
-            if len(u.queue) > 0 and u.queue[-1][0] == u.pos:
-                u.queue.pop()
-
-            if not (len(u.queue) == 0):
-                next_pos = u.pos + vec2.MOVES[u.queue[-1][1]]
-                next_pos.mod(gmap.width, gmap.height)
-                if (
-                    next_pos in unit_dict.by_pos
-                    and unit_dict.by_pos[next_pos].faction_id == faction_id
-                ):
-                    u.queue.clear()
-                    rand_dir = random.choice(list(vec2.MOVES.keys()))
-                    cmds.append(MoveUnitCommand(faction_id, u.ID, rand_dir))
-                    continue
-
-            if len(u.queue) == 0:
-
-                chosen_tile = random.choices(positions, weights=weights, k=1)[0]
-
+        if (
+            sum(unit_counts)
+            >= sum(
+                [
+                    gmap.economy[faction_id]["S"],
+                    gmap.economy[faction_id]["P"],
+                    gmap.economy[faction_id]["R"],
+                ]
+            )
+            and len(threat_list) > 0
+        ):
+            my_units = units[faction_id]
+            for u in my_units:
+                chosen_tile = random.choices(threat_list, weights=threat_weights, k=1)[
+                    0
+                ]
                 came_from, cost_so_far = a_star(
                     u.pos, chosen_tile, gmap, unit_dict, u.faction_id
                 )
                 u.queue = reconstruct_path(came_from, u.pos, chosen_tile)
-            if len(u.queue) > 0:
-                move_dir = u.queue[-1][1]
-            else:
-                move_dir = random.choice(list(vec2.MOVES.keys()))
+                if len(u.queue) > 0:
+                    move_dir = u.queue[-1][1]
+                else:
+                    move_dir = random.choice(list(vec2.MOVES.keys()))
 
-            cmds.append(MoveUnitCommand(faction_id, u.ID, move_dir))
+                cmds.append(MoveUnitCommand(faction_id, u.ID, move_dir))
+        else:
+            # Attack Behavior
+            my_units = units[faction_id]
+            for u in my_units:
+                if len(u.queue) > 0 and u.queue[-1][0] == u.pos:
+                    u.queue.pop()
+
+                if not (len(u.queue) == 0):
+                    next_pos = u.pos + vec2.MOVES[u.queue[-1][1]]
+                    next_pos.mod(gmap.width, gmap.height)
+                    if (
+                        next_pos in unit_dict.by_pos
+                        and unit_dict.by_pos[next_pos].faction_id == faction_id
+                    ):
+                        u.queue.clear()
+                        rand_dir = random.choice(list(vec2.MOVES.keys()))
+                        cmds.append(MoveUnitCommand(faction_id, u.ID, rand_dir))
+                        continue
+
+                if len(u.queue) == 0:
+
+                    chosen_tile = random.choices(positions, weights=weights, k=1)[0]
+
+                    came_from, cost_so_far = a_star(
+                        u.pos, chosen_tile, gmap, unit_dict, u.faction_id
+                    )
+                    u.queue = reconstruct_path(came_from, u.pos, chosen_tile)
+                if len(u.queue) > 0:
+                    move_dir = u.queue[-1][1]
+                else:
+                    move_dir = random.choice(list(vec2.MOVES.keys()))
+
+                cmds.append(MoveUnitCommand(faction_id, u.ID, move_dir))
 
         return cmds
