@@ -9,6 +9,10 @@
 
 The AI I’ve developed coordinates offensive and defensive unit movement, builds units in response to enemy composition, and uses a terrain-weighted A* pathfinding algorithm enhanced with influence-based goal weighting. The AI is shared by both factions, and the core logic for movement and production is contained within ai.py.
 
+## How-To
+- Run the main.py file from the repository root.
+- Ex: ```py main.py```
+
 # Use of Terrain
 
 Terrain affects multiple aspects of gameplay. Each tile’s terrain type provides attack and defense modifiers, influencing combat outcomes. These same tiles also impose movement penalties, which factor into A* pathfinding costs. In practice, this causes units to avoid high-cost terrain like mountains and favors more strategic navigation through the map.
